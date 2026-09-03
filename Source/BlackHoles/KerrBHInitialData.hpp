@@ -1,4 +1,5 @@
 /* GRTeclyn
+ *
  * Copyright 2022 The GRTL collaboration.
  * Please refer to LICENSE in GRTeclyn's root directory.
  */
@@ -6,63 +7,53 @@
 #ifndef KERRBHINITIALDATA_HPP_
 #define KERRBHINITIALDATA_HPP_
 
-#include "ADMConformalVars.hpp"
-#include "CoordinateTransformations.hpp"
+#include "CCZ4Vars.hpp"
 #include "Coordinates.hpp"
-#include "StateVariables.hpp" //This files needs NUM_VARS - total number of components
-#include "Tensor.hpp"
-#include "TensorAlgebra.hpp"
-#include "VarsTools.hpp"
-#include "simd.hpp"
+#include "DimensionDefinitions.hpp"
 
-//! Class which computes the Kerr initial conditions per arXiv 1401.1548
+#include <AMReX_Array4.H>
+#include <AMReX_GpuQualifiers.H>
+#include <AMReX_IntVect.H>
+#include <AMReX_REAL.H>
+
+#include <array>
+
+static_assert(AMREX_SPACEDIM == 3,
+              "KerrBHInitialData is implemented only in three dimensions.");
+
 class KerrBHInitialData
 {
-    // Use the variable definition in CCZ4
-    template <class data_t>
-    using Vars = ADMConformalVars::VarsWithGauge<data_t>;
-
-  public:
-    //! Stuct for the params of the Kerr BHInitialData
+public:
     struct params_t
     {
-        amrex::Real mass; //!<< The mass of the Kerr BH
-        std::array<amrex::Real, AMREX_SPACEDIM>
-            center;       //!< The center of the Kerr BH
-        amrex::Real spin; //!< The spin param a = J/M, so 0 <= |a| <= M
+        amrex::Real mass{};
+        amrex::Real spin{};
+
+        std::array<amrex::Real, AMREX_SPACEDIM> center{};
+        std::array<amrex::Real, AMREX_SPACEDIM> spin_direction{
+            0.0, 0.0, 1.0};
+
+        void check_params();
+        void fill_params();
     };
 
-  protected:
+    explicit KerrBHInitialData(amrex::Real a_dx);
+
+    AMREX_GPU_DEVICE
+    void operator()(int ix, int iy, int iz,
+                    const amrex::Array4<amrex::Real> &state) const;
+
+private:
+    using vector_t = std::array<amrex::Real, AMREX_SPACEDIM>;
+    using matrix_t = std::array<vector_t, AMREX_SPACEDIM>;
+
     amrex::Real m_dx;
     params_t m_params;
 
-  public:
-    KerrBHInitialData(params_t a_params, amrex::Real a_dx)
-        : m_dx(a_dx), m_params(a_params)
-
-    {
-        // check this spin param is sensible
-        if (std::abs(m_params.spin) > m_params.mass)
-        {
-            amrex::Abort("The spin parameter must satisfy |a| <= M");
-        }
-    }
-
-    template <class data_t> void compute(Cell<data_t> current_cell) const;
-
-  protected:
-    //! Function which computes the components of the metric in spherical coords
-    template <class data_t>
-    void compute_kerr(
-        Tensor<2, data_t>
-            &spherical_g, //!<< The spatial metric in spherical coords
-        Tensor<2, data_t>
-            &spherical_K, //!<< The extrinsic curvature in spherical coords
-        Tensor<1, data_t>
-            &spherical_shift, //!<< The spherical components of the shift
-        data_t &kerr_lapse,   //!<< The lapse for the kerr solution
-        const Coordinates<data_t> coords //!<< Coords of current cell
-    ) const;
+    AMREX_GPU_DEVICE
+    void compute_kerr(matrix_t &spherical_g, matrix_t &spherical_K,
+                      vector_t &spherical_shift, amrex::Real &kerr_lapse,
+                      const vector_t &coords) const;
 };
 
 #include "KerrBHInitialData.impl.hpp"
