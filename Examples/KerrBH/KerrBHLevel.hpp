@@ -64,4 +64,4 @@ class KerrBHLevel : public GRAmrLevel
                                   std::ostream & /*a_os*/) override;
 };
 
-#endif /* BINARYBHLEVEL_HPP_ */
+#endif /* KERRBHLEVEL_HPP_ */
