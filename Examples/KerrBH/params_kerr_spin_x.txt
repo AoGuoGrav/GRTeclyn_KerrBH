@@ -1,0 +1,108 @@
+# Single Kerr BH: positive spin along the global x axis.
+# This is a Step-3 diagnostic case for testing arbitrary spin directions.
+
+#################################################
+# Output and diagnostics
+
+grteclyn.output_path = kerr_xspin_output
+
+amr.verbose = 1
+amr.check_int = 0
+amr.plot_int = 1
+amr.plot_vars = ALL
+amr.derive_plot_vars = ALL
+
+#################################################
+# Temporary BinaryBH-compatible parameters
+#
+# These remain necessary until migration steps 4 and 5 remove
+# the old BinaryBH / puncture-tracker scaffolding.
+
+bh1.mass = 1.0
+bh2.mass = 1.0
+
+bh1.offset = 0.0 0.0 0.0
+bh2.offset = 0.0 0.0 0.0
+
+bh1.momentum = 0.0 0.0 0.0
+bh2.momentum = 0.0 0.0 0.0
+
+#################################################
+# Analytic single-Kerr initial data
+
+kerr.mass = 1.0
+kerr.spin = 0.5
+
+# The actual test: spin is along +x, not +z.
+# Its magnitude does not matter; the code normalizes this direction.
+kerr.spin_direction = 1.0 0.0 0.0
+
+# The BH lies at the centre of the computational domain.
+geometry.center = 4.0 4.0 4.0
+kerr.center = 4.0 4.0 4.0
+kerr.offset = 0.0 0.0 0.0
+
+#################################################
+# Grid
+
+amr.n_cell = 32 32 32
+geometry.prob_extent = 8.0 8.0 8.0
+geometry.is_periodic = 0 0 0
+
+amr.max_level = 0
+amr.max_grid_size = 16
+amr.blocking_factor = 16
+
+#################################################
+# Boundary conditions
+#
+# Do not use the old reflective z boundary: an x-spin case is fully 3D.
+
+boundary.lo_condition = "SOMMERFELD_BC" "SOMMERFELD_BC" "SOMMERFELD_BC"
+boundary.hi_condition = "SOMMERFELD_BC" "SOMMERFELD_BC" "SOMMERFELD_BC"
+
+#################################################
+# Evolution
+
+evolution.max_steps = 4
+evolution.stop_time = 1.0
+evolution.dt_multiplier = 0.125
+evolution.spatial_derivative_order = 4
+evolution.nan_check = true
+evolution.sigma = 0.5
+
+#################################################
+# Gauge
+
+gauge.lapse_advec_coeff = 1.0
+gauge.lapse_coeff = 2.0
+gauge.lapse_power = 1.0
+
+gauge.shift_advec_coeff = 1.0
+gauge.shift_Gamma_coeff = 0.75
+gauge.eta = 1.0
+
+#################################################
+# CCZ4
+
+ccz4.formulation = 0
+ccz4.kappa1 = 0.1
+ccz4.kappa2 = 0.0
+ccz4.kappa3 = 1.0
+ccz4.covariantZ4 = true
+
+ccz4.min_chi = 1.0e-4
+ccz4.min_lapse = 1.0e-4
+
+#################################################
+# Disable features not needed for this initial-data test.
+#
+# The centre is still supplied because the current Step-3 code
+# may read it even when Weyl extraction is disabled.
+
+weyl_extraction.enabled = false
+weyl_extraction.center = 4.0 4.0 4.0
+
+puncture_tracking.enabled = false
+
+tagging.threshold = 0.5

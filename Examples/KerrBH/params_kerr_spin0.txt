@@ -4,6 +4,9 @@
 #################################################
 # Filesystem and output
 
+# Put all output from this spin=0 test in its own directory.
+grteclyn.output_path = kerr_spin0_output
+
 amr.verbose = 1
 
 # Disable checkpoints for this short validation run.

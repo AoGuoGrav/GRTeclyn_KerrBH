@@ -1,0 +1,98 @@
+# GRTeclyn KerrBH parameter file:
+# Step-3 validation, Kerr BH with spin along the global z axis.
+
+#################################################
+# Filesystem and output
+
+# Keep this run separate from the previous spin-0 output.
+grteclyn.output_path = kerr_zspin_output
+
+amr.verbose = 1
+
+# Disable checkpoints for this short validation run.
+amr.check_int = -1
+
+# Write the initial plotfile and one plotfile per timestep.
+amr.plot_int = 1
+amr.plot_vars = ALL
+amr.derive_plot_vars = ALL
+
+#################################################
+# Temporary BinaryBH compatibility parameters
+#
+# Step 3 still retains BinaryBH-derived tagging/tracking code.
+# These are not used by KerrBHInitialData, but they must remain until
+# Step 4 changes the example to a single puncture.
+
+bh1.mass = 1.0
+bh2.mass = 1.0
+
+bh1.offset = 0.0 0.0 0.0
+bh2.offset = 0.0 0.0 0.0
+
+bh1.momentum = 0.0 0.0 0.0
+bh2.momentum = 0.0 0.0 0.0
+
+#################################################
+# Kerr initial-data parameters
+
+# Black-hole mass M.
+kerr.mass = 1.0
+
+# Kerr parameter a = J / M.
+# It must satisfy abs(kerr.spin) <= kerr.mass.
+kerr.spin = 0.5
+
+# Standard axisymmetric Kerr test: spin along global z.
+kerr.spin_direction = 0.0 0.0 1.0
+
+# Put the black hole at the centre of the full 3D domain.
+geometry.center = 4.0 4.0 4.0
+kerr.center = 4.0 4.0 4.0
+kerr.offset = 0.0 0.0 0.0
+
+#################################################
+# Grid parameters
+
+amr.n_cell = 32 32 32
+geometry.prob_extent = 8.0 8.0 8.0
+
+amr.max_level = 0
+amr.max_grid_size = 16
+amr.blocking_factor = 16
+
+#################################################
+# Boundary conditions
+
+geometry.is_periodic = 0 0 0
+
+boundary.hi_condition = "SOMMERFELD_BC" "SOMMERFELD_BC" "SOMMERFELD_BC"
+boundary.lo_condition = "SOMMERFELD_BC" "SOMMERFELD_BC" "SOMMERFELD_BC"
+
+#################################################
+# Evolution parameters
+
+# Run only a short smoke test first.
+evolution.max_steps = 4
+evolution.dt_multiplier = 0.125
+
+# Must agree with the GammaCalculator / gauge initialisation branch.
+evolution.spatial_derivative_order = 4
+
+evolution.nan_check = true
+evolution.sigma = 0.5
+
+gauge.shift_advec_coeff = 1.0
+
+#################################################
+# Extraction and puncture tracking
+#
+# The current code still constructs extraction parameters even if extraction
+# is disabled, so centre must still be supplied.
+
+weyl_extraction.enabled = false
+weyl_extraction.center = 4.0 4.0 4.0
+
+# Keep disabled until Step 4 converts the legacy two-puncture tracker
+# into PunctureTracker<1>.
+puncture_tracking.enabled = false
