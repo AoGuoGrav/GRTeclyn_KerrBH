@@ -341,7 +341,7 @@ amrex::Real trace(const kerr_matrix_t &a_covariant_tensor,
 }
 } // namespace
 
-void KerrBHInitialData::params_t::check_params()
+inline void KerrBHInitialData::params_t::check_params()
 {
     GRParmParse kerr_pp("kerr");
 
@@ -378,7 +378,7 @@ void KerrBHInitialData::params_t::check_params()
     }
 }
 
-void KerrBHInitialData::params_t::fill_params()
+inline void KerrBHInitialData::params_t::fill_params()
 {
     GRParmParse kerr_pp("kerr");
     GRParmParse geometry_pp("geometry");
@@ -512,7 +512,7 @@ AMREX_GPU_DEVICE void KerrBHInitialData::operator()(
     static_cast<void>(analytic_lapse);
 }
 
-AMREX_GPU_DEVICE
+AMREX_GPU_DEVICE AMREX_FORCE_INLINE
 void KerrBHInitialData::compute_kerr(
     matrix_t &spherical_g, matrix_t &spherical_K,
     vector_t &spherical_shift, amrex::Real &kerr_lapse,

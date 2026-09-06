@@ -1,4 +1,5 @@
 /* GRTeclyn
+ *
  * Copyright 2022 The GRTL collaboration.
  * Please refer to LICENSE in GRTeclyn's root directory.
  */
@@ -10,20 +11,17 @@
 #include "BaseParameterChecker.hpp"
 
 // Problem specific includes:
-#include "BoostedBHInitialData.hpp"
 #include "CCZ4RHS.hpp"
 #include "ExtractionTagger.hpp"
+#include "KerrBHInitialData.hpp"
 #include "MovingPunctureGauge.hpp"
 #include "PunctureTagger.hpp"
 #include "PunctureTracker.hpp"
 #include "SphericalExtractionParameters.hpp"
-#ifdef USE_TWOPUNCTURES
-#include "TwoPuncturesInitialData.hpp"
-#endif
 
 class SimulationParameters
 {
-  public:
+public:
     // NOLINTNEXTLINE(readability-identifier-length)
     SimulationParameters() = delete;
 
@@ -34,15 +32,11 @@ class SimulationParameters
         CCZ4_params_t::check_params();
         MovingPunctureGauge<FourthOrderDerivatives>::params_t::check_params();
         ExtractionTagger::check_params();
-        PunctureTagger<2>::check_params();
+        PunctureTagger<1>::check_params();
         puncture_tracker_params_t::check_params();
 
-#ifndef USE_TWOPUNCTURES
-        BoostedBHInitialData::params_t::check_params(1);
-        BoostedBHInitialData::params_t::check_params(2);
-#else
-        TwoPuncturesInitialData::check_params();
-#endif
+        KerrBHInitialData::params_t kerr_params;
+        kerr_params.check_params();
 
         spherical_extraction_params_t::check_params("weyl_extraction");
     }

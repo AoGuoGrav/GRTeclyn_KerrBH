@@ -1,0 +1,144 @@
+# GRTeclyn KerrBH parameter file.
+#
+# Physical and numerical counterpart of GRChombo Examples/KerrBH/params_cheap.txt.
+#
+# Important:
+# - Uses the same M = 1, a = 0.5, N_full = 64, L_full = 128,
+#   max_level = 4, BSSN formulation, and short four-step run.
+# - Uses the full 3D domain and all-Sommerfeld boundaries because the
+#   GRChombo test has an oblique spin direction (0.1, 0.1, 0.0).
+
+#################################################
+#################################################
+# Filesystem and output
+
+grteclyn.output_path = kerr_grchombo_cheap_output
+
+amr.verbose = 0
+amrex.verbose = 0
+
+# Explicitly include the output root in AMReX paths.
+amr.check_file = "kerr_grchombo_cheap_output/checkpoints/KerrBH_"
+amr.plot_file = "kerr_grchombo_cheap_output/plots/KerrBHp_"
+
+amr.file_name_digits = 6
+
+amr.check_int = 1
+amr.plot_int = 2
+
+amr.plot_vars = chi
+amr.derive_plot_vars = Ham
+
+#################################################
+# Kerr initial data
+
+# GRChombo: kerr_mass = 1.0
+kerr.mass = 1.0
+
+# GRChombo: kerr_spin = 0.5
+kerr.spin = 0.5
+
+# GRChombo: kerr_spin_direction = 0.1 0.1 0.0
+# The direction need not be normalized.
+kerr.spin_direction = 0.1 0.1 0.0
+
+# GRChombo N_full = 64 and L_full = 128 correspond to a full
+# coordinate domain from 0 to 128 in each direction.
+#
+# KerrBHInitialData uses geometry.center plus kerr.offset.
+# Do not add kerr.center: the new GRTeclyn Kerr initial-data class
+# does not read that parameter.
+geometry.center = 64.0 64.0 64.0
+kerr.offset = 0.0 0.0 0.0
+
+#################################################
+# Grid and AMR
+
+# GRChombo: N_full = 64, L_full = 128
+amr.n_cell = 64 64 64
+geometry.prob_extent = 128.0 128.0 128.0
+
+# GRChombo: max_level = 4
+amr.max_level = 4
+
+# GRChombo regrid_interval has one value per level. AMReX/GRTeclyn
+# needs one value per coarse-to-fine transition: levels 0->1 through 3->4.
+amr.regrid_int = 50 25 5 5
+
+# GRChombo: regrid_thresholds = 0.3 on every level.
+tagging.threshold = 0.3
+
+# GRChombo: max_box_size = 16, min_box_size = 16.
+amr.max_grid_size = 16
+amr.blocking_factor = 16
+
+# GRChombo: tag_buffer_size = 3, fill_ratio = 0.7.
+amr.n_error_buf = 3
+amr.grid_eff = 0.7
+
+#################################################
+# Boundary conditions
+
+geometry.is_periodic = 0 0 0
+
+# The original GRChombo file used a reflective lower-z boundary.
+# For its oblique spin direction, use a full 3D GRTeclyn domain instead.
+boundary.lo_condition = "SOMMERFELD_BC" "SOMMERFELD_BC" "SOMMERFELD_BC"
+boundary.hi_condition = "SOMMERFELD_BC" "SOMMERFELD_BC" "SOMMERFELD_BC"
+
+#################################################
+# Evolution
+
+# GRChombo: dt_multiplier = 0.25
+evolution.dt_multiplier = 0.25
+
+# GRChombo params_cheap limits the run to four steps and leaves stop_time
+# unspecified. Use -1 to ensure max_steps is the active stopping criterion.
+evolution.stop_time = 10.0
+evolution.max_steps = 4
+
+# GRChombo: max_spatial_derivative_order = 4
+evolution.spatial_derivative_order = 4
+
+# GRChombo: nan_check = 1
+evolution.nan_check = true
+
+# GRChombo: sigma = 0.3
+evolution.sigma = 0.3
+
+#################################################
+# Gauge
+
+# GRChombo lapse parameters.
+gauge.lapse_advec_coeff = 1.0
+gauge.lapse_coeff = 2.0
+gauge.lapse_power = 1.0
+
+# GRChombo shift parameters.
+gauge.shift_advec_coeff = 0.0
+gauge.shift_Gamma_coeff = 0.75
+gauge.eta = 1.0
+
+#################################################
+# BSSN / CCZ4 formulation
+
+# GRChombo: formulation = 1 means BSSN.
+ccz4.formulation = 1
+
+
+# GRChombo: covariantZ4 = 1.
+ccz4.covariantZ4 = true
+
+# Make the existing GRTeclyn floors explicit.
+ccz4.min_chi = 1.0e-4
+ccz4.min_lapse = 1.0e-4
+
+#################################################
+# Optional systems disabled for this porting test
+
+# GRChombo: activate_extraction = 0.
+weyl_extraction.enabled = false
+weyl_extraction.center = 64.0 64.0 64.0
+
+# The single-Kerr example does not need puncture tracking for this test.
+puncture_tracking.enabled = false

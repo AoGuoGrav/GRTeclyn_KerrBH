@@ -1,30 +1,30 @@
 /* GRTeclyn
-
-- Copyright 2022 The GRTL collaboration.
-- Please refer to LICENSE in GRTeclyn's root directory.
-*/
+ *
+ * Copyright 2022 The GRTL collaboration.
+ * Please refer to LICENSE in GRTeclyn's root directory.
+ */
 
 #include "KerrBHLevel.hpp"
 
-#include "GammaCalculator.hpp"
-#include "IntegratedMovingPunctureGauge.hpp"
-#include "KerrBHInitialData.hpp"
-
 #include "AlgebraicConstraintsEnforcer.hpp"
-
 #include "CCZ4RHS.hpp"
 #include "ChiTagger.hpp"
 #include "Constraints.hpp"
 #include "ExtractionTagger.hpp"
 #include "FourthOrderDerivatives.hpp"
+#include "GammaCalculator.hpp"
+#include "GRParmParse.hpp"
+#include "IntegratedMovingPunctureGauge.hpp"
+#include "KerrBHInitialData.hpp"
 #include "PositiveChiAndLapse.hpp"
 #include "PunctureTagger.hpp"
 #include "PunctureTracker.hpp"
 #include "SixthOrderDerivatives.hpp"
-#include "TwoPuncturesInitialData.hpp"
 #include "Weyl4.hpp"
 #include "WeylExtraction.hpp"
 
+#include <array>
+#include <cstddef>
 #include <type_traits>
 
 BHAmr<KerrBHLevel::num_punctures> *KerrBHLevel::get_bh_amr_ptr()
@@ -42,7 +42,7 @@ void KerrBHLevel::variableSetUp()
 {
     BL_PROFILE("KerrBHLevel::variableSetUp()");
 
-    // Set up the state variables
+    // Set up the state variables.
     state_variable_set_up();
 
     Constraints::set_up(state_index);
@@ -50,18 +50,17 @@ void KerrBHLevel::variableSetUp()
     Weyl4::set_up(state_index);
 }
 
-// Things to do during the advance step after RK4 steps
+// Things to do during the advance step after RK4 steps.
 void KerrBHLevel::specific_advance()
 {
     amrex::MultiFab &state_new = get_new_data(state_index);
-    const auto &state_arrays   = state_new.arrays();
+    const auto &state_arrays = state_new.arrays();
 
-    // The classes to be used
     AlgebraicConstraintsEnforcer algebraic_constraints_enforcer;
     PositiveChiAndLapse positive_chi_lapse;
 
-    // Enforce det(h)=1, the trace free A_ij condition and positive chi and
-    // lapse
+    // Enforce det(h)=1, the trace-free A_ij condition, and positive chi
+    // and lapse.
     amrex::ParallelFor(
         state_new,
         [=] AMREX_GPU_DEVICE(int box_no, int ix, int iy, int iz)
@@ -81,61 +80,18 @@ void KerrBHLevel::initData()
         amrex::Print() << "KerrBHLevel::initData " << Level() << "\n";
     }
 
-#ifdef USE_TWOPUNCTURES
-    TwoPuncturesInitialData two_punctures_initial_data(Geom().CellSize(0));
-
-    two_punctures_initial_data.solve(); // only solves first time
-
-    amrex::MultiFab &state_new = get_new_data(state_index);
-
-#ifdef AMREX_USE_GPU
-    amrex::MFInfo mf_info;
-    mf_info.SetArena(amrex::The_Cpu_Arena());
-
-    amrex::MultiFab host_state(state_new.boxArray(),
-                               state_new.DistributionMap(),
-                               state_new.nComp(),
-                               state_new.nGrowVect(), mf_info);
-#else
-    amrex::MultiFab &host_state = state_new;
-#endif
-
-#ifdef AMREX_USE_OMP
-#pragma omp parallel if (amrex::Gpu::notInLaunchRegion())
-#endif
-    for (amrex::MFIter mfi(state_new, amrex::TilingIfNotGPU());
-         mfi.isValid(); ++mfi)
-    {
-        const amrex::Box &grown_tile_box = mfi.growntilebox();
-        const auto &state_array          = host_state.array(mfi);
-
-        amrex::LoopOnCpu(
-            grown_tile_box,
-            [=](int ix, int iy, int iz)
-            {
-                two_punctures_initial_data(ix, iy, iz, state_array);
-            });
-
-#ifdef AMREX_USE_GPU
-        // Copy to device
-        amrex::Gpu::htod_memcpy_async(
-            state_new[mfi].dataPtr(), host_state[mfi].dataPtr(),
-            host_state[mfi].size() * sizeof(amrex::Real));
-#endif
-    }
-
-#else
     // Construct the analytic semi-isotropic Kerr initial data.
     const amrex::Real dx = Geom().CellSize(0);
 
     const KerrBHInitialData kerr_initial_data(dx);
+
     static_assert(std::is_trivially_copyable_v<KerrBHInitialData>,
                   "KerrBHInitialData must be device copyable");
 
     // Zero every state component first. KerrBHInitialData then overwrites
-    // chi, h_ij, K, A_ij, lapse, and shift with the analytic Kerr values.
+    // chi, h_ij, K, A_ij, lapse, and shift with analytic Kerr values.
     amrex::MultiFab &state_new = get_new_data(state_index);
-    const auto &state_arrays   = state_new.arrays();
+    const auto &state_arrays = state_new.arrays();
 
     amrex::ParallelFor(
         state_new, state_new.nGrowVect(),
@@ -146,18 +102,18 @@ void KerrBHLevel::initData()
 
             for (int n = 0; n < cell.nComp(); ++n)
             {
-                cell[n] = 0.;
+                cell[n] = 0.0;
             }
 
             kerr_initial_data(ix, iy, iz, state_arrays[box_no]);
         });
 
-    // Compute Gamma^i using exactly the same finite-difference order
-    // selected for the evolution RHS. Then initialise B^i = Gamma^i
-    // for the integrated Gamma-driver gauge.
+    // Compute Gamma^i using the same finite-difference order as the RHS.
+    // Then initialise B^i = Gamma^i for the integrated Gamma-driver gauge.
     if (m_evolution_spatial_derivative_order == 4)
     {
         const GammaCalculator<FourthOrderDerivatives> gamma_calculator(dx);
+
         const IntegratedMovingPunctureGauge<FourthOrderDerivatives>
             integrated_moving_puncture_gauge(dx);
 
@@ -179,6 +135,7 @@ void KerrBHLevel::initData()
     else if (m_evolution_spatial_derivative_order == 6)
     {
         const GammaCalculator<SixthOrderDerivatives> gamma_calculator(dx);
+
         const IntegratedMovingPunctureGauge<SixthOrderDerivatives>
             integrated_moving_puncture_gauge(dx);
 
@@ -197,34 +154,25 @@ void KerrBHLevel::initData()
                     ix, iy, iz, state_arrays[box_no]);
             });
     }
-#endif
 
     amrex::Gpu::streamSynchronize();
 
+    // A single Kerr BH has one puncture at its configured centre.
     if (get_bh_amr_ptr()->puncture_tracking_enabled() && Level() == 0)
     {
-        // Keep the binary puncture-tracking scaffold until migration step 4.
-        BoostedBHInitialData::params_t bh1_params(1);
-        BoostedBHInitialData::params_t bh2_params(2);
-
-#ifdef USE_TWOPUNCTURES
-        two_punctures_initial_data.set_bh_params(bh1_params, bh2_params);
-#else
-        bh1_params.fill_params();
-        bh2_params.fill_params();
-#endif
+        KerrBHInitialData::params_t kerr_params;
+        kerr_params.fill_params();
 
         get_puncture_tracker().set_puncture_coords(
-            {bh1_params.center[0], bh1_params.center[1],
-             bh1_params.center[2], bh2_params.center[0],
-             bh2_params.center[1], bh2_params.center[2]});
+            {kerr_params.center[0], kerr_params.center[1],
+             kerr_params.center[2]});
 
         // We cannot call start_from_initial_punctures() here because the
         // complete AMR grid is not available yet.
     }
 }
 
-// Calculate RHS during RK4 substeps
+// Calculate RHS during RK4 substeps.
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 void KerrBHLevel::specific_eval_rhs(amrex::MultiFab &a_soln,
                                     amrex::MultiFab &a_rhs,
@@ -232,16 +180,15 @@ void KerrBHLevel::specific_eval_rhs(amrex::MultiFab &a_soln,
 {
     BL_PROFILE("KerrBHLevel::specific_eval_rhs()");
 
-    const auto &soln_arrays       = a_soln.arrays();
+    const auto &soln_arrays = a_soln.arrays();
     const auto &const_soln_arrays = a_soln.const_arrays();
-    const auto &rhs_arrays        = a_rhs.arrays();
-    const auto soln_ghosts        = a_soln.nGrowVect();
+    const auto &rhs_arrays = a_rhs.arrays();
+    const auto soln_ghosts = a_soln.nGrowVect();
 
-    // The classes to be used
     AlgebraicConstraintsEnforcer algebraic_constraints_enforcer;
     PositiveChiAndLapse positive_chi_lapse;
 
-    // Enforce positive chi and lapse, det(h)=1 and trace free A.
+    // Enforce positive chi and lapse, det(h)=1, and trace-free A_ij.
     amrex::ParallelFor(
         a_soln, soln_ghosts,
         [=] AMREX_GPU_DEVICE(int box_no, int ix, int iy, int iz)
@@ -251,7 +198,7 @@ void KerrBHLevel::specific_eval_rhs(amrex::MultiFab &a_soln,
             positive_chi_lapse(ix, iy, iz, soln_arrays[box_no]);
         });
 
-    // Calculate CCZ4 right hand side using dynamic derivative order.
+    // Calculate CCZ4 right hand side using the selected derivative order.
     if (m_evolution_spatial_derivative_order == 4)
     {
         CCZ4RHS<FourthOrderDerivatives> ccz4rhs(Geom().CellSize(0));
@@ -259,8 +206,6 @@ void KerrBHLevel::specific_eval_rhs(amrex::MultiFab &a_soln,
         IntegratedMovingPunctureGauge<FourthOrderDerivatives>
             moving_puncture_gauge(Geom().CellSize(0));
 
-        // These are split up to avoid having to pre-compute all the first
-        // and second derivatives in memory on the GPU at once.
         amrex::ParallelFor(
             a_rhs,
             [=] AMREX_GPU_DEVICE(int box_no, int ix, int iy, int iz)
@@ -299,8 +244,6 @@ void KerrBHLevel::specific_eval_rhs(amrex::MultiFab &a_soln,
         IntegratedMovingPunctureGauge<SixthOrderDerivatives>
             moving_puncture_gauge(Geom().CellSize(0));
 
-        // These are split up to avoid having to pre-compute all the first
-        // and second derivatives in memory on the GPU at once.
         amrex::ParallelFor(
             a_rhs,
             [=] AMREX_GPU_DEVICE(int box_no, int ix, int iy, int iz)
@@ -336,13 +279,13 @@ void KerrBHLevel::specific_eval_rhs(amrex::MultiFab &a_soln,
     amrex::Gpu::streamSynchronize();
 }
 
-// Enforce algebraic constraints during RK4 substeps
+// Enforce algebraic constraints during RK4 substeps.
 void KerrBHLevel::specific_update_ode(amrex::MultiFab &a_soln)
 {
     AlgebraicConstraintsEnforcer algebraic_constraints_enforcer;
     const auto soln_ghosts = amrex::IntVect(0);
 
-    // Enforce the det(h)=1 and trace free A_ij conditions.
+    // Enforce det(h)=1 and the trace-free A_ij condition.
     const auto &soln_arrays = a_soln.arrays();
 
     amrex::ParallelFor(
@@ -359,12 +302,12 @@ void KerrBHLevel::specific_update_ode(amrex::MultiFab &a_soln)
 void KerrBHLevel::pre_tag_cells()
 {
     amrex::MultiFab &state_new = get_new_data(state_index);
-    const auto current_time    = get_state_data(state_index).curTime();
+    const auto current_time = get_state_data(state_index).curTime();
 
     // Fill ghosts for chi to calculate second derivatives.
     // A fourth-order second derivative requires two ghost cells.
     const int num_ghosts = 2;
-    const int num_comps  = 1;
+    const int num_comps = 1;
 
     FillPatch(*this, state_new, num_ghosts, current_time, state_index,
               c_chi, num_comps);
@@ -377,12 +320,10 @@ void KerrBHLevel::tag_cells(amrex::TagBoxArray &a_tag_box_array,
 
     amrex::MultiFab &state_new = get_new_data(state_index);
 
-    const auto &tag_arrays         = a_tag_box_array.arrays();
+    const auto &tag_arrays = a_tag_box_array.arrays();
     const auto &state_const_arrays = state_new.const_arrays();
 
     ChiTagger chi_tagger(Geom().CellSize(0), a_regrid_threshold);
-
-    GRParmParse pp;
 
     spherical_extraction_params_t extraction_params("weyl_extraction");
     extraction_params.fill_params();
@@ -403,15 +344,15 @@ void KerrBHLevel::tag_cells(amrex::TagBoxArray &a_tag_box_array,
         puncture_coords = get_puncture_tracker().get_puncture_coords();
     }
 
-    amrex::Real bh1_mass{};
-    amrex::Real bh2_mass{};
+    KerrBHInitialData::params_t kerr_params;
+    kerr_params.fill_params();
 
-    pp.get("bh1.mass", bh1_mass);
-    pp.get("bh2.mass", bh2_mass);
+    const std::array<amrex::Real, num_punctures> puncture_masses{
+        kerr_params.mass};
 
     PunctureTagger<num_punctures> puncture_tagger(
         Geom().CellSize(0), Level(), get_gr_amr_ptr()->maxLevel(),
-        puncture_coords, {bh1_mass, bh2_mass});
+        puncture_coords, puncture_masses);
 
     amrex::ParallelFor(
         state_new, amrex::IntVect(0),
@@ -457,7 +398,7 @@ void KerrBHLevel::specific_post_restart()
 }
 
 void KerrBHLevel::specific_post_plotfile(const std::string &a_dir,
-                                         std::ostream &a_os)
+                                         std::ostream & /*a_os*/)
 {
     if (get_bh_amr_ptr()->puncture_tracking_enabled() && Level() == 0)
     {
