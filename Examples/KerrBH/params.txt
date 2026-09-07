@@ -1,0 +1,182 @@
+# GRTeclyn KerrBH parameter file.
+#
+# Counterpart of:
+# GRChombo/Examples/KerrBH/params.txt
+#
+# This configuration uses:
+# - M = 1
+# - a = 0.5
+# - spin direction along the z axis
+# - half-domain in z with a reflective lower-z boundary
+# - coarse grid 128 x 128 x 64
+# - max_level = 6
+# - stop_time = 100
+#
+# The Hamiltonian constraint Ham is contained in the derived group
+# named "constraints".
+
+#################################################
+# Filesystem and output
+
+grteclyn.output_path = kerr_params_output
+
+amr.verbose = 0
+amrex.verbose = 0
+
+amr.check_file = "kerr_params_output/checkpoints/KerrBH_"
+amr.plot_file = "kerr_params_output/plots/KerrBHp_"
+
+amr.file_name_digits = 6
+
+# GRChombo:
+# checkpoint_interval = 50
+# plot_interval = 20
+amr.check_int = 50
+amr.plot_int = 20
+
+# chi is a state variable.
+amr.plot_vars = chi
+
+# Ham, Mom1, Mom2, and Mom3 are components of this derived group.
+amr.derive_plot_vars = constraints
+
+#################################################
+# Kerr initial data
+
+# GRChombo:
+# kerr_mass = 1.0
+# kerr_spin = 0.5
+# The GRChombo params.txt file does not specify
+# kerr_spin_direction, so its default is (0, 0, 1).
+
+kerr.mass = 1.0
+kerr.spin = 0.5
+kerr.spin_direction = 0.0 0.0 1.0
+
+# With the reflective lower-z boundary, the black hole
+# is located on the z = 0 symmetry plane.
+
+geometry.center = 64.0 64.0 0.0
+kerr.offset = 0.0 0.0 0.0
+
+#################################################
+# Grid and AMR
+
+# GRChombo:
+# N_full = 128
+# L_full = 128
+#
+# Because the lower-z half-domain is retained, the actual
+# GRTeclyn domain has 64 cells in z and extent 64 in z.
+
+amr.n_cell = 128 128 64
+geometry.prob_extent = 128.0 128.0 64.0
+
+# GRChombo:
+# max_level = 6
+#
+# AMReX/GRTeclyn has levels 0, 1, ..., 6.
+
+amr.max_level = 6
+
+# One value for every coarse-to-fine transition:
+# level 0 -> 1
+# level 1 -> 2
+# level 2 -> 3
+# level 3 -> 4
+# level 4 -> 5
+# level 5 -> 6
+
+amr.regrid_int = 50 25 5 5 5 5
+
+# GRChombo:
+# regrid_thresholds = 0.1 on every level
+
+tagging.threshold = 0.1
+
+# GRChombo:
+# max_box_size = 16
+# min_box_size = 16
+
+amr.max_grid_size = 16
+amr.blocking_factor = 16
+
+# GRChombo:
+# tag_buffer_size = 3
+# fill_ratio = 0.7
+
+amr.n_error_buf = 3
+amr.grid_eff = 0.7
+
+#################################################
+# Boundary conditions
+
+geometry.is_periodic = 0 0 0
+
+# GRChombo:
+# hi_boundary = 1 1 1
+# lo_boundary = 1 1 2
+#
+# 1 corresponds to Sommerfeld.
+# 2 corresponds to reflective.
+#
+# The GRTeclyn names are used below.
+
+boundary.lo_condition = "SOMMERFELD_BC" "SOMMERFELD_BC" "REFLECTIVE_BC"
+boundary.hi_condition = "SOMMERFELD_BC" "SOMMERFELD_BC" "SOMMERFELD_BC"
+
+#################################################
+# Evolution
+
+evolution.dt_multiplier = 0.25
+evolution.stop_time = 100.0
+evolution.spatial_derivative_order = 4
+evolution.nan_check = true
+evolution.sigma = 0.3
+
+#################################################
+# Gauge
+
+# Lapse evolution parameters
+
+gauge.lapse_advec_coeff = 1.0
+gauge.lapse_coeff = 2.0
+gauge.lapse_power = 1.0
+
+# Shift evolution parameters
+
+gauge.shift_advec_coeff = 0.0
+gauge.shift_Gamma_coeff = 0.75
+gauge.eta = 1.0
+
+#################################################
+# BSSN / CCZ4 formulation
+
+# formulation = 1 means BSSN
+
+ccz4.formulation = 1
+
+# covariantZ4 = 1
+
+ccz4.covariantZ4 = true
+
+# The GRTeclyn implementation enforces positive chi and lapse.
+# These are numerical safety floors used by the current code.
+
+ccz4.min_chi = 1.0e-4
+ccz4.min_lapse = 1.0e-4
+
+#################################################
+# Weyl/extraction system
+
+
+weyl_extraction.enabled = false
+weyl_extraction.center = 64.0 64.0 0.0
+
+#################################################
+# Puncture tracking
+
+# The single Kerr example does not need puncture tracking
+# for this comparison run.
+
+puncture_tracking.enabled = false

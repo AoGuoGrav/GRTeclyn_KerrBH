@@ -17,9 +17,14 @@
 
 namespace
 {
+// Analytic single-Kerr initial data is built in a local frame,
+// then converted to the global Cartesian frame and stored as CCZ4/BSSN
+// variables.
 using kerr_vector_t = std::array<amrex::Real, AMREX_SPACEDIM>;
 using kerr_matrix_t = std::array<kerr_vector_t, AMREX_SPACEDIM>;
 
+// Return the value unless it is smaller than the requested numerical floor.
+// This keeps square roots and divisions away from invalid values on the GPU.
 AMREX_GPU_DEVICE AMREX_FORCE_INLINE
 amrex::Real kerr_max(const amrex::Real a_value, const amrex::Real a_minimum)
 {
@@ -55,6 +60,8 @@ kerr_vector_t cross_product(const kerr_vector_t &a_left,
             a_left[0] * a_right[1] - a_left[1] * a_right[0]};
 }
 
+// Normalize the requested spin direction to obtain the local Kerr axis.
+// A zero vector falls back to the standard +z direction.
 AMREX_GPU_DEVICE AMREX_FORCE_INLINE
 kerr_vector_t normalise(const kerr_vector_t &a_vector)
 {
@@ -171,6 +178,7 @@ kerr_matrix_t rotate_local_tensor_to_global(
 
 // Convert covariant tensors and a contravariant vector from
 // (r, theta, phi) to local Cartesian coordinates.
+// The Jacobians below implement the tensor transformation rules.
 AMREX_GPU_DEVICE AMREX_FORCE_INLINE
 void spherical_to_cartesian(
     const kerr_matrix_t &a_spherical_metric,
@@ -255,6 +263,8 @@ void spherical_to_cartesian(
     }
 }
 
+// The determinant of the physical spatial metric is used to construct
+// the BSSN/CCZ4 conformal factor chi.
 AMREX_GPU_DEVICE AMREX_FORCE_INLINE
 amrex::Real determinant(const kerr_matrix_t &a_matrix)
 {
@@ -341,7 +351,12 @@ amrex::Real trace(const kerr_matrix_t &a_covariant_tensor,
 }
 } // namespace
 
+<<<<<<< Updated upstream
 void KerrBHInitialData::params_t::check_params()
+=======
+// Validate the physical Kerr parameters before they are used on the GPU.
+inline void KerrBHInitialData::params_t::check_params()
+>>>>>>> Stashed changes
 {
     GRParmParse kerr_pp("kerr");
 
@@ -378,7 +393,12 @@ void KerrBHInitialData::params_t::check_params()
     }
 }
 
+<<<<<<< Updated upstream
 void KerrBHInitialData::params_t::fill_params()
+=======
+// Read the Kerr parameters and use geometry.center as the default black-hole centre.
+inline void KerrBHInitialData::params_t::fill_params()
+>>>>>>> Stashed changes
 {
     GRParmParse kerr_pp("kerr");
     GRParmParse geometry_pp("geometry");
@@ -403,6 +423,7 @@ void KerrBHInitialData::params_t::fill_params()
     kerr_pp.queryAdd("spin_direction", spin_direction);
 }
 
+// Construct the initial-data object and load the validated parameter values.
 AMREX_FORCE_INLINE
 KerrBHInitialData::KerrBHInitialData(amrex::Real a_dx) : m_dx(a_dx)
 {
@@ -411,12 +432,14 @@ KerrBHInitialData::KerrBHInitialData(amrex::Real a_dx) : m_dx(a_dx)
 }
 
 AMREX_FORCE_INLINE
+// Evaluate the analytic Kerr initial data at one cell and write all state variables.
 AMREX_GPU_DEVICE void KerrBHInitialData::operator()(
     int ix, int iy, int iz,
     const amrex::Array4<amrex::Real> &state) const
 {
     amrex::CellData<amrex::Real> cell = state.cellData(ix, iy, iz);
 
+    // Coordinates are measured relative to the configured black-hole centre.
     const Coordinates global_coordinates(
         amrex::IntVect(ix, iy, iz), m_dx, m_params.center);
 
@@ -452,6 +475,7 @@ AMREX_GPU_DEVICE void KerrBHInitialData::operator()(
         local_xyz, local_cartesian_metric,
         local_cartesian_extrinsic_curvature, local_cartesian_shift);
 
+    // Rotate the local analytic tensors back to the global Cartesian frame.
     const matrix_t physical_metric =
         rotate_local_tensor_to_global(rotation, local_cartesian_metric);
 
@@ -462,6 +486,8 @@ AMREX_GPU_DEVICE void KerrBHInitialData::operator()(
     const vector_t physical_shift =
         rotate_local_vector_to_global(rotation, local_cartesian_shift);
 
+    // In three spatial dimensions, chi = det(gamma_ij)^(-1/3).
+    // With h_ij = chi * gamma_ij, the conformal metric has unit determinant.
     const amrex::Real metric_determinant = determinant(physical_metric);
 
     const matrix_t inverse_physical_metric =
@@ -484,6 +510,7 @@ AMREX_GPU_DEVICE void KerrBHInitialData::operator()(
         }
     }
 
+    // Store the conformal factor used by the CCZ4/BSSN evolution variables.
     cell[c_chi] = chi;
     cell[c_K] = trace_K;
 
@@ -504,7 +531,10 @@ AMREX_GPU_DEVICE void KerrBHInitialData::operator()(
         cell[c_shift1 + i] = physical_shift[i];
     }
 
-    // Use the same pre-collapsed lapse choice as the original Kerr example.
+    // Use the pre-collapsed moving-puncture lapse choice alpha = sqrt(chi).
+    // The analytic Kerr lapse computed below is intentionally not stored here.
+    // Use the pre-collapsed moving-puncture lapse choice alpha = sqrt(chi).
+    // The analytic Kerr lapse computed below is intentionally not stored here.
     cell[c_lapse] = std::sqrt(chi);
 
     // Theta, Gamma^i and B^i remain zero here. KerrBHLevel::initData()
@@ -556,7 +586,8 @@ void KerrBHInitialData::compute_kerr(
     const amrex::Real r_plus = mass + horizon_root;
     const amrex::Real r_minus = mass - horizon_root;
 
-    // Semi-isotropic radius -> Boyer-Lindquist radius.
+    // Convert the semi-isotropic radius used by the initial-data chart
+    // to the Boyer-Lindquist radial coordinate used in the analytic formulas.
     const amrex::Real radial_factor =
         1.0 + 0.25 * r_plus / radius;
 
@@ -570,6 +601,7 @@ void KerrBHInitialData::compute_kerr(
         r_bl_squared - 2.0 * mass * r_bl + spin_squared;
 
     // Named A in the analytic Kerr expressions.
+    // Kerr auxiliary quantity A used by the angular metric and shift.
     const amrex::Real kerr_A =
         (r_bl_squared + spin_squared) *
             (r_bl_squared + spin_squared) -
@@ -607,6 +639,8 @@ void KerrBHInitialData::compute_kerr(
     const amrex::Real spin_fourth_power =
         spin_squared * spin_squared;
 
+    // Nonzero components of the analytic Kerr extrinsic curvature in
+    // spherical coordinates; symmetric partners are filled below.
     spherical_K[0][2] =
         spin * mass * sin_theta_squared / r_phi_denominator *
         (3.0 * r_bl_fourth_power +
@@ -627,9 +661,11 @@ void KerrBHInitialData::compute_kerr(
 
     spherical_K[2][1] = spherical_K[1][2];
 
+    // Analytic Kerr lapse in the semi-isotropic coordinate system.
     kerr_lapse =
         std::sqrt(kerr_max(delta * sigma / kerr_A, 0.0));
 
+    // Only the azimuthal shift component is nonzero in the local Kerr frame.
     spherical_shift[2] =
         -2.0 * mass * spin * r_bl / kerr_A;
 }
