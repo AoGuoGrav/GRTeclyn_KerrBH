@@ -351,12 +351,8 @@ amrex::Real trace(const kerr_matrix_t &a_covariant_tensor,
 }
 } // namespace
 
-<<<<<<< Updated upstream
-void KerrBHInitialData::params_t::check_params()
-=======
 // Validate the physical Kerr parameters before they are used on the GPU.
 inline void KerrBHInitialData::params_t::check_params()
->>>>>>> Stashed changes
 {
     GRParmParse kerr_pp("kerr");
 
@@ -393,12 +389,8 @@ inline void KerrBHInitialData::params_t::check_params()
     }
 }
 
-<<<<<<< Updated upstream
-void KerrBHInitialData::params_t::fill_params()
-=======
 // Read the Kerr parameters and use geometry.center as the default black-hole centre.
 inline void KerrBHInitialData::params_t::fill_params()
->>>>>>> Stashed changes
 {
     GRParmParse kerr_pp("kerr");
     GRParmParse geometry_pp("geometry");

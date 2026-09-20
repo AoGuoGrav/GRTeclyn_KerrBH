@@ -63,7 +63,7 @@ amr.max_level = 4
 
 # GRChombo regrid_interval has one value per level. AMReX/GRTeclyn
 # needs one value per coarse-to-fine transition: levels 0->1 through 3->4.
-amr.regrid_int = 1 1 1 1
+amr.regrid_int = 50 25 5 5
 
 # GRChombo: regrid_thresholds = 0.3 on every level.
 tagging.threshold = 0.3
@@ -94,7 +94,7 @@ evolution.dt_multiplier = 0.25
 
 # GRChombo params_cheap limits the run to four steps and leaves stop_time
 # unspecified. Use -1 to ensure max_steps is the active stopping criterion.
-evolution.stop_time = 10.0
+#evolution.stop_time = 10.0
 evolution.max_steps = 4
 
 # GRChombo: max_spatial_derivative_order = 4
