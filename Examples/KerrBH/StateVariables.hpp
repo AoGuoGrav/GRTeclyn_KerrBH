@@ -21,7 +21,7 @@ enum
 namespace StateVariables
 {
 static const amrex::Vector<std::string> &names = CCZ4StateVariables::names;
-//static const amrex::Vector<std::string> names = CCZ4StateVariables::names;
+// static const amrex::Vector<std::string> names = CCZ4StateVariables::names;
 
 static const std::array<BCParity, NUM_VARS> parities =
     CCZ4StateVariables::parities;
