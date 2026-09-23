@@ -418,18 +418,18 @@ rotation_matrix(const Tensor::Rank1 &axis, amrex::Real cos_angle)
     amrex::Real sine          = std::sqrt(1. - cos_angle * cos_angle);
     amrex::Real one_minus_cos = 1. - cos_angle;
 
-    Tensor::Rank2 R;
-    R(0, 0) = axis(0) * axis(0) * one_minus_cos + cos_angle;
-    R(0, 1) = axis(1) * axis(0) * one_minus_cos - axis(2) * sine;
-    R(0, 2) = axis(2) * axis(0) * one_minus_cos + axis(1) * sine;
-    R(1, 0) = axis(0) * axis(1) * one_minus_cos + axis(2) * sine;
-    R(1, 1) = axis(1) * axis(1) * one_minus_cos + cos_angle;
-    R(1, 2) = axis(2) * axis(1) * one_minus_cos - axis(0) * sine;
-    R(2, 0) = axis(0) * axis(2) * one_minus_cos - axis(1) * sine;
-    R(2, 1) = axis(1) * axis(2) * one_minus_cos + axis(0) * sine;
-    R(2, 2) = axis(2) * axis(2) * one_minus_cos + cos_angle;
+    Tensor::Rank2 Rotataion;
+    Rotataion(0, 0) = axis(0) * axis(0) * one_minus_cos + cos_angle;
+    Rotataion(0, 1) = axis(1) * axis(0) * one_minus_cos - axis(2) * sine;
+    Rotataion(0, 2) = axis(2) * axis(0) * one_minus_cos + axis(1) * sine;
+    Rotataion(1, 0) = axis(0) * axis(1) * one_minus_cos + axis(2) * sine;
+    Rotataion(1, 1) = axis(1) * axis(1) * one_minus_cos + cos_angle;
+    Rotataion(1, 2) = axis(2) * axis(1) * one_minus_cos - axis(0) * sine;
+    Rotataion(2, 0) = axis(0) * axis(2) * one_minus_cos - axis(1) * sine;
+    Rotataion(2, 1) = axis(1) * axis(2) * one_minus_cos + axis(0) * sine;
+    Rotataion(2, 2) = axis(2) * axis(2) * one_minus_cos + cos_angle;
 
-    return R;
+    return Rotataion;
 }
 
 // cartesian coordinates rotation matrix from origin vector to destination
@@ -447,7 +447,9 @@ rotation_matrix(const Tensor::Rank1 &origin, const Tensor::Rank1 &destination)
     static const amrex::Real eps = 1.e-13;
     if (std::abs(axis(0)) < eps && std::abs(axis(1)) < eps &&
         std::abs(axis(2)) < eps)
+    {
         return rotation_matrix({0., 0., 0.}, 1.);
+    }
 
     amrex::Real norm_inv =
         1.0 /
