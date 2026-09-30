@@ -81,9 +81,9 @@ boundary.lo_condition = "SOMMERFELD_BC" "SOMMERFELD_BC" "REFLECTIVE_BC"
 # Evolution parameters
 
 # dt is dx * dt_multiplier on each grid level
-# evolution.dt_multiplier = 0.25
+evolution.dt_multiplier = 0.25
 evolution.stop_time = 20.0
-evolution.max_steps = 40
+#evolution.max_steps = 40
 
 # Spatial derivative order (only affects the CCZ4 RHS)
 evolution.spatial_derivative_order = 6
