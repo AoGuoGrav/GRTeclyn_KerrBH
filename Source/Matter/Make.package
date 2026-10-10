@@ -1,12 +1,15 @@
-GRTECLYN_CEXE_headers += DefaultPotential.hpp \
+GRTECLYN_CEXE_headers += CCZ4RHSWithMatter.hpp \
+			 CCZ4RHSWithMatter.impl.hpp \
+			 ChiRelaxation.hpp \
+			 ChiRelaxation.impl.hpp \
+			 ConstraintsWithMatter.hpp \
+			 ConstraintsWithMatter.impl.hpp \
+			 DefaultPotential.hpp \
 			 EMTensor.hpp \
 			 EMTensor.impl.hpp \
-			 MatterCCZ4RHS.hpp \
-			 MatterCCZ4RHS.impl.hpp \
-			 MatterConstraints.hpp \
-			 MatterConstraints.impl.hpp \
-			 MatterWeyl4.hpp \
-			 MatterWeyl4.impl.hpp \
-			 MovingPunctureGaugeWithMatter \
+			 MatterCCZ4.hpp \
+			 MovingPunctureGaugeWithMatter.hpp \
 			 ScalarField.hpp \
-			 ScalarField.impl.hpp
+			 ScalarField.impl.hpp \
+			 Weyl4WithMatter.hpp \
+			 Weyl4WithMatter.impl.hpp
