@@ -1,0 +1,167 @@
+# GRTeclyn ekpyrotic contraction example
+# Single scalar field with V = V0 exp(-c phi), inhomogeneous along x only.
+# Initial data follow Xue, Garfinkle, Pretorius & Steinhardt, arXiv:1308.3044,
+# Eqs. (25)-(36). Commented parameters show default or suggested values.
+
+#################################################
+# Filesystem parameters
+# grteclyn.output_path = . # base path for all output
+
+amr.verbose = 1
+
+# Number of level-0 time steps between checkpoint files; -1 disables output
+# amr.check_int = -1
+# Number of level-0 time steps between plot files; -1 disables output
+amr.plot_int = 1000
+
+amr.plot_vars = chi K lapse phi Pi A11 A22 A33
+amr.derive_plot_vars = constraints anisotropy
+
+#################################################
+# Scalar-field and potential parameters
+
+# kappa^2 = 8 pi G = 1, as in Xue et al.
+scalar_field.G_Newton = 0.039788735772973836
+# V(phi) = V0 exp(-c phi)
+scalar_field.V0 = -0.02
+scalar_field.c = 10.0
+
+#################################################
+# Initial data parameters
+# Q(x) = Pi0 + f0 cos(m x), phi(x) = phi0 + f1 cos(m x), m = 2 pi n / L_x
+# A11 = kappa^2 [-Pi0 f1 cos(m x) - f0 f1 cos(2 m x) / 4]
+# A^Xue = diag(A11, lambda A11, -(1 + lambda) A11)
+# K0 = +sqrt(3 kappa^2 <rho>) (contracting), lapse = 1, shift = 0
+
+initial_data.phi0 = 0.0
+# If true, Pi0 = -sqrt(2 c^2 V(phi0) / (6 kappa^2 - c^2)) (scaling solution)
+# and initial_data.Pi0 is ignored
+initial_data.use_scaling_Pi0 = true
+# initial_data.Pi0 = 0.0
+initial_data.f0 = 0.0
+initial_data.f1 = 0.0
+initial_data.lambda = 0.0
+initial_data.mode_number = 1 # n
+
+#################################################
+# Chi relaxation parameters
+# For t < relaxation.time only chi evolves, with rhs_chi = speed * Ham.
+# This is an explicit diffusion: each step reduces the Ham error of a mode
+# with wavenumber k by a factor ~exp(-0.05 dx^2 (2 k^2 + 3 kappa^2 Pi0^2))
+# (with the default speed), independent of dt_multiplier. For the grid below
+# this is ~2500 steps per e-fold for the k = m mode, so relaxing to
+# round-off takes O(10^5) steps; the cost scales as N^2.
+relaxation.time = 0.0
+# Default 0.05 * coarsest_dx / dt_multiplier; values above ~0.08 * dx / dt_mult
+# are likely to be unstable
+# relaxation.speed = 0.078125
+
+#################################################
+# Grid parameters
+
+# Quasi-1D: inhomogeneous along x, homogeneous along y and z
+amr.n_cell = 128 16 16
+geometry.prob_extent = 20.0 2.5 2.5
+
+amr.max_level = 0 # there are max_level + 1 levels
+
+# Regridding interval in level timesteps; -1 disables regridding
+amr.regrid_int = -1
+
+# Maximum number of cells along each side of a grid box
+amr.max_grid_size = 64
+# Grid box side lengths must be divisible by this value
+amr.blocking_factor = 16
+
+#################################################
+# Boundary condition parameters
+
+# Periodic directions: 0 = false, 1 = true
+# (boundary.lo_condition/hi_condition must be left unset for periodic
+# directions)
+geometry.is_periodic = 1 1 1
+
+#################################################
+# Evolution parameters
+
+# dt is dx * dt_multiplier on each grid level
+evolution.dt_multiplier = 0.1
+# The background reaches the big crunch (K -> infinity) a proper time
+# |t0| = 3 p / K0 after the relaxation ends, with p = 2 kappa^2 / c^2
+# (|t0| ~ 0.97 for the parameters above). With a fixed dt the run fails
+# (NaN) shortly before that, so keep stop_time < relaxation.time + |t0|.
+evolution.stop_time = 0.5
+# evolution.max_steps = 1000000
+
+# Spatial derivative order (only affects the CCZ4 RHS)
+# evolution.spatial_derivative_order = 4
+
+# evolution.nan_check = true
+
+# Lapse evolution: harmonic slicing d_t lapse = -lapse^2 K
+gauge.lapse_advec_coeff = 0.0
+gauge.lapse_coeff = 1.0
+gauge.lapse_power = 2.0
+
+# Shift evolution: switched off
+gauge.shift_advec_coeff = 0.0
+gauge.shift_Gamma_coeff = 0.0
+gauge.eta = 0.0
+
+# BSSN
+ccz4.formulation = 1 # 1 for BSSN, 0 for CCZ4
+# ccz4.kappa1 = 0.0 # forced to zero with BSSN
+# ccz4.kappa2 = 0.0
+# ccz4.kappa3 = 0.0
+
+# Coefficient for KO numerical dissipation
+# evolution.sigma = 0.1
+
+# ccz4.min_chi = 1.e-4
+# ccz4.min_lapse = 1.e-4
+
+#################################################
+# Diagnostics
+
+# Print constraint norms and averages every print_interval steps and write
+# the x profiles every extraction_interval steps
+diagnostics.print_interval = 1
+diagnostics.extraction_interval = 50
+
+# x profiles through the cell centres at fixed y, z. With 128 points from
+# dx/2 to L_x - dx/2 the points coincide with the cell centres.
+chi_line_extraction.enabled = true
+chi_line_extraction.num_points = 128
+chi_line_extraction.start = 0.078125 1.328125 1.328125
+chi_line_extraction.end = 19.921875 1.328125 1.328125
+chi_line_extraction.file_prefix = chi_profile_
+
+K_line_extraction.enabled = true
+K_line_extraction.num_points = 128
+K_line_extraction.start = 0.078125 1.328125 1.328125
+K_line_extraction.end = 19.921875 1.328125 1.328125
+K_line_extraction.file_prefix = K_profile_
+
+lapse_line_extraction.enabled = true
+lapse_line_extraction.num_points = 128
+lapse_line_extraction.start = 0.078125 1.328125 1.328125
+lapse_line_extraction.end = 19.921875 1.328125 1.328125
+lapse_line_extraction.file_prefix = lapse_profile_
+
+scalar_field_line_extraction.enabled = true
+scalar_field_line_extraction.num_points = 128
+scalar_field_line_extraction.start = 0.078125 1.328125 1.328125
+scalar_field_line_extraction.end = 19.921875 1.328125 1.328125
+scalar_field_line_extraction.file_prefix = scalar_field_profile_
+
+constraints_line_extraction.enabled = true
+constraints_line_extraction.num_points = 128
+constraints_line_extraction.start = 0.078125 1.328125 1.328125
+constraints_line_extraction.end = 19.921875 1.328125 1.328125
+constraints_line_extraction.file_prefix = constraints_profile_
+
+anisotropy_line_extraction.enabled = true
+anisotropy_line_extraction.num_points = 128
+anisotropy_line_extraction.start = 0.078125 1.328125 1.328125
+anisotropy_line_extraction.end = 19.921875 1.328125 1.328125
+anisotropy_line_extraction.file_prefix = anisotropy_profile_
