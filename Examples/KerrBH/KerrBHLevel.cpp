@@ -7,10 +7,12 @@
 
 #include "AlgebraicConstraintsEnforcer.hpp"
 #include "CCZ4RHS.hpp"
-#include "ChiTagger.hpp"
+#include "ChiGradientTagger.hpp"      // [CHANGED] GRChombo-style tagging criterion
 #include "Constraints.hpp"
-#include "ExtractionTagger.hpp"
+#include "ExtractionTagger.hpp"        // kept: provides spherical_extraction_params_t used below
 #include "FourthOrderDerivatives.hpp"
+#include "GammaCalculator.hpp"        // [ADDED] numerical Gamma^i at t=0
+#include "MovingPunctureGauge.hpp"
 #include "KerrBHInitialData.hpp"
 #include "PositiveChiAndLapse.hpp"
 #include "SixthOrderDerivatives.hpp"
@@ -71,7 +73,7 @@ void KerrBHLevel::initData()
                   "KerrBHInitialData needs to be device copyable");
 
     // First set everything to zero (to avoid undefinded values in constraints)
-    // then calculate initial data
+    // then calculate initial data (on valid + ghost cells, analytically)
     amrex::MultiFab &state_new = get_new_data(state_index);
     const auto &state_arrays   = state_new.arrays();
     amrex::ParallelFor(state_new, state_new.nGrowVect(),
@@ -85,6 +87,19 @@ void KerrBHLevel::initData()
                            }
                            kerr_initial_data(ix, iy, iz, state_arrays[box_no]);
                        });
+    amrex::Gpu::streamSynchronize();
+
+    // [ADDED] As in GRChombo's KerrBHLevel::initialData():
+    //  Gamma^i is not set by the Kerr initial data (it is non-zero for Kerr),
+    //  so compute it numerically from h_ij. GRChombo's GammaCalculator always
+    //  uses 4th-order derivatives, so do the same here to match it exactly.
+    //  Done on valid cells only; the analytic h_ij in the ghost cells (set
+    //  above) provides the stencil points.
+    //  B^i is left at 0, as in GRChombo with the standard MovingPunctureGauge.
+    const GammaCalculator<FourthOrderDerivatives> gamma_calculator(dx);
+    amrex::ParallelFor(state_new,
+                       [=] AMREX_GPU_DEVICE(int box_no, int ix, int iy, int iz)
+                       { gamma_calculator(ix, iy, iz, state_arrays[box_no]); });
 
     amrex::Gpu::streamSynchronize();
 }
@@ -118,7 +133,7 @@ void KerrBHLevel::specific_eval_rhs(amrex::MultiFab &a_soln,
     if (m_evolution_spatial_derivative_order == 4)
     {
         CCZ4RHS<FourthOrderDerivatives> ccz4rhs(Geom().CellSize(0));
-        MovingPunctureGauge<FourthOrderDerivatives> moving_puncture_gauge(
+        MovingPunctureGauge<FourthOrderDerivatives> gauge(
             Geom().CellSize(0));
 
         // NB: These are split up to avoid having to pre-compute all the
@@ -144,8 +159,8 @@ void KerrBHLevel::specific_eval_rhs(amrex::MultiFab &a_soln,
             a_rhs,
             [=] AMREX_GPU_DEVICE(int box_no, int ix, int iy, int iz)
             {
-                moving_puncture_gauge.calculate_rhs(
-                    ix, iy, iz, rhs_arrays[box_no], const_soln_arrays[box_no]);
+                gauge.calculate_rhs(ix, iy, iz, rhs_arrays[box_no],
+                                    const_soln_arrays[box_no]);
 
                 ccz4rhs.apply_dissipation(ix, iy, iz, rhs_arrays[box_no],
                                           const_soln_arrays[box_no]);
@@ -154,7 +169,7 @@ void KerrBHLevel::specific_eval_rhs(amrex::MultiFab &a_soln,
     else if (m_evolution_spatial_derivative_order == 6)
     {
         CCZ4RHS<SixthOrderDerivatives> ccz4rhs(Geom().CellSize(0));
-        MovingPunctureGauge<SixthOrderDerivatives> moving_puncture_gauge(
+        MovingPunctureGauge<SixthOrderDerivatives> gauge(
             Geom().CellSize(0));
 
         // NB: These are split up to avoid having to pre-compute all the
@@ -180,8 +195,8 @@ void KerrBHLevel::specific_eval_rhs(amrex::MultiFab &a_soln,
             a_rhs,
             [=] AMREX_GPU_DEVICE(int box_no, int ix, int iy, int iz)
             {
-                moving_puncture_gauge.calculate_rhs(
-                    ix, iy, iz, rhs_arrays[box_no], const_soln_arrays[box_no]);
+                gauge.calculate_rhs(ix, iy, iz, rhs_arrays[box_no],
+                                    const_soln_arrays[box_no]);
 
                 ccz4rhs.apply_dissipation(ix, iy, iz, rhs_arrays[box_no],
                                           const_soln_arrays[box_no]);
@@ -213,8 +228,8 @@ void KerrBHLevel::pre_tag_cells()
     amrex::MultiFab &state_new = get_new_data(state_index);
     const auto current_time    = get_state_data(state_index).curTime();
 
-    // Fill ghosts for chi to calculate second derivatives
-    // 4th-order d2 requires 2 ghost cells
+    // Fill ghosts for chi to calculate first derivatives
+    // 4th-order d1 requires 2 ghost cells
     const int num_ghosts = 2;
     const int num_comps  = 1;
 
@@ -231,20 +246,16 @@ void KerrBHLevel::tag_cells(amrex::TagBoxArray &a_tag_box_array,
     const auto &tag_arrays         = a_tag_box_array.arrays();
     const auto &state_const_arrays = state_new.const_arrays();
 
-    ChiTagger chi_tagger(Geom().CellSize(0), a_regrid_threshold);
-
-    spherical_extraction_params_t extraction_params("weyl_extraction");
-    extraction_params.fill_params();
-    ExtractionTagger extraction_tagger(Geom().CellSize(0), Level(),
-                                       extraction_params);
+    // [CHANGED] GRChombo KerrBH criterion: dx * |grad chi| / chi^2.
+    // The extraction tagger has been removed: GRChombo's KerrBH example
+    // does not force extra refinement around extraction spheres.
+    ChiGradientTagger chi_tagger(Geom().CellSize(0), a_regrid_threshold);
 
     amrex::ParallelFor(state_new, amrex::IntVect(0),
                        [=] AMREX_GPU_DEVICE(int box_no, int ix, int iy, int iz)
                        {
                            chi_tagger(ix, iy, iz, tag_arrays[box_no],
                                       state_const_arrays[box_no]);
-
-                           extraction_tagger(ix, iy, iz, tag_arrays[box_no]);
                        });
 
     amrex::Gpu::streamSynchronize();
