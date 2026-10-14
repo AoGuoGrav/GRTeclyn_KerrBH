@@ -11,6 +11,7 @@
 #include "StateVariables.hpp" //This files needs NUM_VARS - total number of components
 #include "Tensor.hpp"
 #include "TensorAlgebra.hpp"
+#include <AMReX_Array4.H>
 #include <AMReX_GpuQualifiers.H>
 #include <array>
 
