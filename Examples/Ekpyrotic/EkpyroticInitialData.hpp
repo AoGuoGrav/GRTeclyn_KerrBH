@@ -92,9 +92,9 @@ class EkpyroticInitialData
                                            const Potential &a_potential,
                                            amrex::Real a_phi0)
     {
-        const amrex::Real c = a_potential.get_params().c;
-        return 2.0 * c * c * a_potential.V_of_phi(a_phi0) /
-               (6.0 * a_kappa2 - c * c);
+        const amrex::Real c_value = a_potential.get_params().c;
+        return 2.0 * c_value * c_value * a_potential.V_of_phi(a_phi0) /
+               (6.0 * a_kappa2 - c_value * c_value);
     }
 
     static background_t compute_background(const params_t &a_params,
@@ -136,11 +136,11 @@ class EkpyroticInitialData
             const amrex::Real x      = period * isample / num_samples;
             const amrex::Real cos_mx = std::cos(background.wavenumber * x);
             const amrex::Real sin_mx = std::sin(background.wavenumber * x);
-            const amrex::Real Q      = background.Pi0 + a_params.f0 * cos_mx;
+            const amrex::Real Q_x    = background.Pi0 + a_params.f0 * cos_mx;
             const amrex::Real phi    = a_params.phi0 + a_params.f1 * cos_mx;
             const amrex::Real dphi_dx =
                 -a_params.f1 * background.wavenumber * sin_mx;
-            rho_sum += 0.5 * Q * Q + 0.5 * dphi_dx * dphi_dx +
+            rho_sum += 0.5 * Q_x * Q_x + 0.5 * dphi_dx * dphi_dx +
                        a_potential.V_of_phi(phi);
         }
         background.mean_rho = rho_sum / num_samples;
@@ -237,15 +237,15 @@ class EkpyroticInitialData
     [[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE amrex::Real
     A11_Xue(amrex::Real x) const
     {
-        const amrex::Real mx = m_background.wavenumber * x;
+        const amrex::Real phase = m_background.wavenumber * x;
         return m_background.kappa2 *
-               (-m_background.Pi0 * m_params.f1 * std::cos(mx) -
-                0.25 * m_params.f0 * m_params.f1 * std::cos(2.0 * mx));
+               (-m_background.Pi0 * m_params.f1 * std::cos(phase) -
+                0.25 * m_params.f0 * m_params.f1 * std::cos(2.0 * phase));
     }
 
     amrex::Real m_dx;
     params_t m_params{};
-    Potential m_potential{};
+    Potential m_potential;
     background_t m_background{};
 };
 
@@ -256,16 +256,16 @@ inline void EkpyroticInitialData::params_t::check_params()
     amrex::Real phi0{0.0};
     amrex::Real Pi0{0.0};
     bool use_scaling_Pi0{true};
-    amrex::Real f0{0.0};
-    amrex::Real f1{0.0};
+    amrex::Real f0_value{0.0};
+    amrex::Real f1_value{0.0};
     amrex::Real lambda{0.0};
     int mode_number{1};
 
     pp.queryAdd("phi0", phi0);
     pp.queryAdd("Pi0", Pi0);
     pp.queryAdd("use_scaling_Pi0", use_scaling_Pi0);
-    pp.queryAdd("f0", f0);
-    pp.queryAdd("f1", f1);
+    pp.queryAdd("f0", f0_value);
+    pp.queryAdd("f1", f1_value);
     pp.queryAdd("lambda", lambda);
     pp.queryAdd("mode_number", mode_number);
 

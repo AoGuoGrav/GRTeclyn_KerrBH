@@ -63,8 +63,9 @@ class AnisotropyDiagnostic
         const amrex::Real sigma2 =
             0.5 * TensorAlgebra::compute_trace(A_LL, A_UU);
 
-        const amrex::Real rho =
-            m_matter.compute_emtensor(ix, iy, iz, state, m_deriv, h_UU).rho;
+        const auto emtensor =
+            m_matter.compute_emtensor(ix, iy, iz, state, m_deriv, h_UU);
+        const amrex::Real rho = emtensor.rho;
 
         out(ix, iy, iz, dcomp)     = sigma2;
         out(ix, iy, iz, dcomp + 1) = rho;

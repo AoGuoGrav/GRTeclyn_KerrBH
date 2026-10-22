@@ -26,11 +26,11 @@ class Potential
         static void check_params()
         {
             GRParmParse scalar_field_pp("scalar_field");
-            amrex::Real V0{-1.0};
-            amrex::Real c{10.0};
-            scalar_field_pp.queryAdd("V0", V0);
-            scalar_field_pp.queryAdd("c", c);
-            if (c <= 0.0)
+            amrex::Real V0_value{-1.0};
+            amrex::Real c_value{10.0};
+            scalar_field_pp.queryAdd("V0", V0_value);
+            scalar_field_pp.queryAdd("c", c_value);
+            if (c_value <= 0.0)
             {
                 scalar_field_pp.error("c", "must be > 0.0");
             }
