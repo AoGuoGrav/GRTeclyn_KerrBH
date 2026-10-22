@@ -8,6 +8,7 @@
 #include "AlgebraicConstraintsEnforcer.hpp"
 #include "AnisotropyDiagnostic.hpp"
 #include "CCZ4RHSWithMatter.hpp"
+#include "ChiRelaxation.hpp"
 #include "ChiRelaxationParameters.hpp"
 #include "ConstraintsWithMatter.hpp"
 #include "DiagnosticsParameters.hpp"
@@ -15,7 +16,6 @@
 #include "FixedGridsTagger.hpp"
 #include "FourthOrderDerivatives.hpp"
 #include "IntegratedMovingPunctureGauge.hpp"
-#include "Interval.hpp"
 #include "LineExtraction.hpp"
 #include "PositiveChiAndLapse.hpp"
 #include "SixthOrderDerivatives.hpp"
@@ -277,18 +277,16 @@ void EkpyroticLevel::relaxation_rhs(amrex::MultiFab &a_soln,
         [=] AMREX_GPU_DEVICE(int box_no, int ix, int iy, int iz)
         { initial_data.set_momenta(ix, iy, iz, soln_arrays[box_no]); });
 
-    // Only chi is relaxed; write Ham directly into the chi component of the
-    // RHS (no momentum constraints are computed)
-    a_rhs.setVal(0.0);
-    const EkpyroticConstraints constraints(Geom().CellSize(0), c_chi,
-                                           Interval());
+    // Only chi is relaxed: rhs_chi = speed * Ham / chi, all other RHS zero
+    ScalarFieldWithPotential<>::params_t scalar_field_params;
+    scalar_field_params.fill_params();
+    const ChiRelaxation<ScalarFieldWithPotential<>> chi_relaxation(
+        Geom().CellSize(0), a_relaxation_speed, scalar_field_params.G_Newton);
     amrex::ParallelFor(a_rhs,
                        [=] AMREX_GPU_DEVICE(int box_no, int ix, int iy, int iz)
                        {
-                           constraints(ix, iy, iz, rhs_arrays[box_no],
-                                       const_soln_arrays[box_no]);
-                           rhs_arrays[box_no](ix, iy, iz, c_chi) *=
-                               a_relaxation_speed;
+                           chi_relaxation.compute(ix, iy, iz, rhs_arrays[box_no],
+                                                  const_soln_arrays[box_no]);
                        });
 
     amrex::Gpu::streamSynchronize();

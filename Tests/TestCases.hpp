@@ -16,6 +16,7 @@
 #include "BSSNMatterTest.hpp"
 #include "CCZ4GeometryUnitTest.hpp"
 #include "CCZ4RHSTest.hpp"
+#include "ChiRelaxationTest.hpp"
 #include "ConstraintsTest.hpp"
 #include "CoordinateTransformationsTest.hpp"
 #include "DerivativeUnitTests.hpp"
@@ -43,6 +44,8 @@ TEST_CASE("CCZ4 Geometry") { run_ccz4_geometry_unit_tests(); }
 TEST_CASE("ParticleInterpolator") { run_particle_interpolator_test(); }
 
 TEST_CASE("CCZ4RHS") { run_ccz4_rhs_test(); }
+
+TEST_CASE("ChiRelaxation") { run_chi_relaxation_test(); }
 
 TEST_CASE("Constraints"
 #ifndef AMREX_USE_HDF5

@@ -45,7 +45,8 @@ initial_data.mode_number = 1 # n
 
 #################################################
 # Chi relaxation parameters
-# For t < relaxation.time only chi evolves, with rhs_chi = speed * Ham.
+# For t < relaxation.time only chi evolves, with rhs_chi = speed * Ham / chi
+# (see Source/Matter/ChiRelaxation.hpp).
 # This is an explicit diffusion: each step reduces the Ham error of a mode
 # with wavenumber k by a factor ~exp(-0.05 dx^2 (2 k^2 + 3 kappa^2 Pi0^2))
 # (with the default speed), independent of dt_multiplier. For the grid below

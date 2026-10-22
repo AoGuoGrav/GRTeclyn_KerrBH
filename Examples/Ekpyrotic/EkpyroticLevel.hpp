@@ -19,9 +19,9 @@
 /*!
     For time < relaxation.time the conformal factor chi is relaxed towards a
     solution of the Hamiltonian constraint: all RHS are zero apart from
-    rhs_chi = relaxation.speed * Ham, and Pi and A_ij are recomputed from chi
-    before every RK stage and after every step so that the momentum
-    constraint holds exactly (see EkpyroticInitialData). After that the
+    rhs_chi = relaxation.speed * Ham / chi (see ChiRelaxation), and Pi and
+    A_ij are recomputed from chi before every RK stage and after every step
+    so that the momentum constraint holds exactly (see EkpyroticInitialData). After that the
     CCZ4/BSSN equations with the scalar field are evolved.
 */
 class EkpyroticLevel : public GRAmrLevel
