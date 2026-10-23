@@ -1,7 +1,7 @@
 # GRTeclyn ekpyrotic contraction example
 # Single scalar field with V = V0 exp(-c phi), inhomogeneous along x only.
-# Initial data follow Xue, Garfinkle, Pretorius & Steinhardt, arXiv:1308.3044,
-# Eqs. (25)-(36). Commented parameters show default or suggested values.
+# Initial data follow Xue, Garfinkle, Pretorius & Steinhardt, arXiv:1308.3044, Eqs. (25)-(36). 
+# Commented parameters show default or suggested values.
 
 #################################################
 # Filesystem parameters
@@ -56,6 +56,20 @@ relaxation.time = 0.0
 # Default 0.05 * coarsest_dx / dt_multiplier; values above ~0.08 * dx / dt_mult
 # are likely to be unstable
 # relaxation.speed = 0.078125
+
+# Relaxation method: "parabolic" (default, rhs_chi = speed * Ham / chi, see
+# above) or "hyperbolic" (rhs_chi = theta, rhs_theta = A * Ham / chi - eta *
+# theta; see Source/Matter/ChiHyperbolicRelaxation.hpp). The hyperbolic method
+# decays every mode at rate eta / 2 when the k = 0 mode is critically damped,
+# ~60 steps per e-fold for the grid below instead of ~6400, so relaxation.time
+# ~ 25 is enough to reach round-off.
+relaxation.method = hyperbolic
+# Hyperbolic only. A: default 0.1 / dt_multiplier^2, values above
+# ~0.2 / dt_multiplier^2 are likely to be unstable.
+# eta: must be set; the critical value 2 sqrt(A * 3 kappa^2 Pi0^2) is printed
+# at start-up (~2.26 for A = 10 and the parameters below).
+# relaxation.A = 10.0
+# relaxation.eta = 2.26
 
 #################################################
 # Grid parameters

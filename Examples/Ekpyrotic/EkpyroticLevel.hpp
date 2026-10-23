@@ -6,6 +6,7 @@
 #ifndef EKPYROTICLEVEL_HPP_
 #define EKPYROTICLEVEL_HPP_
 
+#include "ChiRelaxationParameters.hpp"
 #include "DefaultLevelBld.hpp"
 #include "EkpyroticAmr.hpp"
 #include "FourthOrderDerivatives.hpp"
@@ -18,11 +19,14 @@
 /// (ekpyrotic) potential and inhomogeneities along x.
 /*!
     For time < relaxation.time the conformal factor chi is relaxed towards a
-    solution of the Hamiltonian constraint: all RHS are zero apart from
-    rhs_chi = relaxation.speed * Ham / chi (see ChiRelaxation), and Pi and
-    A_ij are recomputed from chi before every RK stage and after every step
-    so that the momentum constraint holds exactly (see EkpyroticInitialData). After that the
-    CCZ4/BSSN equations with the scalar field are evolved.
+    solution of the Hamiltonian constraint. With relaxation.method = parabolic
+    all RHS are zero apart from rhs_chi = relaxation.speed * Ham / chi (see
+    ChiRelaxation); with relaxation.method = hyperbolic all RHS are zero apart
+    from rhs_chi = theta and rhs_theta = A * Ham / chi - eta * theta (see
+    ChiHyperbolicRelaxation). In both cases Pi and A_ij are recomputed from
+    chi before every RK stage and after every step so that the momentum
+    constraint holds exactly (see EkpyroticInitialData). After that the
+    CCZ4/BSSN equations with the scalar field are evolved, with theta frozen.
 */
 class EkpyroticLevel : public GRAmrLevel
 {
@@ -53,9 +57,9 @@ class EkpyroticLevel : public GRAmrLevel
                    amrex::Real a_regrid_threshold) final;
 
   protected:
-    //! RHS during the chi relaxation
+    //! RHS during the chi relaxation (parabolic or hyperbolic)
     void relaxation_rhs(amrex::MultiFab &a_soln, amrex::MultiFab &a_rhs,
-                        amrex::Real a_relaxation_speed);
+                        const chi_relaxation_params_t &a_relaxation);
 
     //! Full CCZ4/BSSN + scalar field RHS
     template <class deriv_t>

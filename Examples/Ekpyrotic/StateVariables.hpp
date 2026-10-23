@@ -15,13 +15,15 @@ enum
 {
     c_phi = NUM_CCZ4_VARS,
     c_Pi,
+    c_theta, // theta = d chi / d tau, only evolved by the hyperbolic relaxation
 
     NUM_VARS
 };
 
 namespace StateVariables
 {
-static const amrex::Vector<std::string> scalar_field_names = {"phi", "Pi"};
+static const amrex::Vector<std::string> scalar_field_names = {"phi", "Pi",
+                                                              "relax_theta"};
 
 static const amrex::Vector<std::string> names =
     ArrayTools::concatenate(CCZ4StateVariables::names, scalar_field_names);
@@ -29,13 +31,13 @@ static const amrex::Vector<std::string> names =
 static constexpr int NUM_MATTER_VARS = NUM_VARS - NUM_CCZ4_VARS;
 
 static const std::array<BCParity, NUM_MATTER_VARS> scalar_field_parities = {
-    BCParity::even, BCParity::even};
+    BCParity::even, BCParity::even, BCParity::even};
 
 static const std::array<BCParity, NUM_VARS> parities = ArrayTools::concatenate(
     CCZ4StateVariables::parities, scalar_field_parities);
 
 static const std::array<amrex::Real, NUM_MATTER_VARS>
-    scalar_field_asymptotic_values = {0.0, 0.0};
+    scalar_field_asymptotic_values = {0.0, 0.0, 0.0};
 
 static const std::array<amrex::Real, NUM_VARS> asymptotic_values =
     ArrayTools::concatenate(CCZ4StateVariables::asymptotic_values,

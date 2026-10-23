@@ -7,5 +7,6 @@
 #define CHIRELAXATIONTEST_HPP_
 
 void run_chi_relaxation_test();
+void run_chi_hyperbolic_relaxation_test();
 
 #endif /* CHIRELAXATIONTEST_HPP_ */

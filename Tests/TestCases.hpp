@@ -47,6 +47,8 @@ TEST_CASE("CCZ4RHS") { run_ccz4_rhs_test(); }
 
 TEST_CASE("ChiRelaxation") { run_chi_relaxation_test(); }
 
+TEST_CASE("ChiHyperbolicRelaxation") { run_chi_hyperbolic_relaxation_test(); }
+
 TEST_CASE("Constraints"
 #ifndef AMREX_USE_HDF5
           * doctest::skip()

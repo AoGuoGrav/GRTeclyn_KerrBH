@@ -8,6 +8,7 @@
 #include "AlgebraicConstraintsEnforcer.hpp"
 #include "AnisotropyDiagnostic.hpp"
 #include "CCZ4RHSWithMatter.hpp"
+#include "ChiHyperbolicRelaxation.hpp"
 #include "ChiRelaxation.hpp"
 #include "ChiRelaxationParameters.hpp"
 #include "ConstraintsWithMatter.hpp"
@@ -133,10 +134,12 @@ void EkpyroticLevel::specific_post_timestep()
 
     const LineExtraction<4> constraints_extraction(
         "constraints_line_extraction", 0, dt, time, restart_time, first_step);
+    constexpr std::array<BCParity, 4> constraints_parities{
+        BCParity::even, BCParity::odd_x, BCParity::odd_y, BCParity::odd_z};
     const LineExtraction<4>::derived_vars_t constraints_vars{
-        Constraints::name,
-        {"Ham",          "Mom1",          "Mom2",          "Mom3"         },
-        {BCParity::even, BCParity::odd_x, BCParity::odd_y, BCParity::odd_z}
+        .name            = Constraints::name,
+        .component_names = {"Ham", "Mom1", "Mom2", "Mom3"},
+        .parities        = constraints_parities
     };
     constraints_extraction.execute_query(&amr_ptr->constraints_interpolator,
                                          constraints_vars);
@@ -144,9 +147,9 @@ void EkpyroticLevel::specific_post_timestep()
     const LineExtraction<3> anisotropy_extraction(
         "anisotropy_line_extraction", 0, dt, time, restart_time, first_step);
     const LineExtraction<3>::derived_vars_t anisotropy_vars{
-        AnisotropyDiagnostic::name,
-        {"sigma2",       "rho",          "sigma2_over_rho"},
-        {BCParity::even, BCParity::even, BCParity::even   }
+        .name            = AnisotropyDiagnostic::name,
+        .component_names = {"sigma2",       "rho",          "sigma2_over_rho"},
+        .parities        = {BCParity::even, BCParity::even, BCParity::even   }
     };
     anisotropy_extraction.execute_query(&amr_ptr->anisotropy_interpolator,
                                         anisotropy_vars);
@@ -183,7 +186,9 @@ void EkpyroticLevel::print_diagnostics()
                    << state.sum(c_chi) / num_points << " chi_min "
                    << state.min(c_chi) << " chi_max " << state.max(c_chi)
                    << " K_mean " << state.sum(c_K) / num_points
-                   << " lapse_mean " << state.sum(c_lapse) / num_points << "\n"
+                   << " lapse_mean " << state.sum(c_lapse) / num_points
+                   << " theta_rms "
+                   << state.norm2(c_theta) / std::sqrt(num_points) << "\n"
                    << std::defaultfloat;
 }
 
@@ -240,7 +245,7 @@ void EkpyroticLevel::specific_eval_rhs(amrex::MultiFab &a_soln,
     const amrex::Real step_start_time = get_state_data(state_index).prevTime();
     if (step_start_time < relaxation.time)
     {
-        relaxation_rhs(a_soln, a_rhs, relaxation.speed);
+        relaxation_rhs(a_soln, a_rhs, relaxation);
         return;
     }
 
@@ -261,7 +266,7 @@ void EkpyroticLevel::specific_eval_rhs(amrex::MultiFab &a_soln,
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 void EkpyroticLevel::relaxation_rhs(amrex::MultiFab &a_soln,
                                     amrex::MultiFab &a_rhs,
-                                    const amrex::Real a_relaxation_speed)
+                                    const chi_relaxation_params_t &a_relaxation)
 {
     BL_PROFILE("EkpyroticLevel::relaxation_rhs()");
 
@@ -277,17 +282,41 @@ void EkpyroticLevel::relaxation_rhs(amrex::MultiFab &a_soln,
         [=] AMREX_GPU_DEVICE(int box_no, int ix, int iy, int iz)
         { initial_data.set_momenta(ix, iy, iz, soln_arrays[box_no]); });
 
-    // Only chi is relaxed: rhs_chi = speed * Ham / chi, all other RHS zero
     ScalarFieldWithPotential<>::params_t scalar_field_params;
     scalar_field_params.fill_params();
-    const ChiRelaxation<ScalarFieldWithPotential<>> chi_relaxation(
-        Geom().CellSize(0), a_relaxation_speed, scalar_field_params.G_Newton);
-    amrex::ParallelFor(a_rhs,
-                       [=] AMREX_GPU_DEVICE(int box_no, int ix, int iy, int iz)
-                       {
-                           chi_relaxation.compute(ix, iy, iz, rhs_arrays[box_no],
-                                                  const_soln_arrays[box_no]);
-                       });
+
+    // The method is chosen here on the host: a_relaxation contains a
+    // std::string, so it must not be captured by the device lambdas
+    if (a_relaxation.is_hyperbolic())
+    {
+        // rhs_chi = theta, rhs_theta = A * Ham / chi - eta * theta, all other
+        // RHS zero
+        const ChiHyperbolicRelaxation<ScalarFieldWithPotential<>>
+            chi_relaxation(Geom().CellSize(0), a_relaxation.coefficient_A,
+                           c_theta, a_relaxation.eta_damping,
+                           scalar_field_params.G_Newton);
+        amrex::ParallelFor(
+            a_rhs,
+            [=] AMREX_GPU_DEVICE(int box_no, int ix, int iy, int iz)
+            {
+                chi_relaxation.compute(ix, iy, iz, rhs_arrays[box_no],
+                                       const_soln_arrays[box_no]);
+            });
+    }
+    else
+    {
+        // rhs_chi = speed * Ham / chi, all other RHS zero
+        const ChiRelaxation<ScalarFieldWithPotential<>> chi_relaxation(
+            Geom().CellSize(0), a_relaxation.speed,
+            scalar_field_params.G_Newton);
+        amrex::ParallelFor(
+            a_rhs,
+            [=] AMREX_GPU_DEVICE(int box_no, int ix, int iy, int iz)
+            {
+                chi_relaxation.compute(ix, iy, iz, rhs_arrays[box_no],
+                                       const_soln_arrays[box_no]);
+            });
+    }
 
     amrex::Gpu::streamSynchronize();
 }
@@ -335,6 +364,10 @@ void EkpyroticLevel::evolution_rhs(amrex::MultiFab &a_soln,
                                     const_soln_arrays[box_no]);
             ccz4_rhs.apply_dissipation(ix, iy, iz, rhs_arrays[box_no],
                                        const_soln_arrays[box_no]);
+            // theta is only used by the hyperbolic relaxation: freeze it. Its
+            // RHS is not written above (and the dissipation adds to the RHS
+            // of all NUM_VARS components), so overwrite it last
+            rhs_arrays[box_no](ix, iy, iz, c_theta) = 0.0;
         });
 
     amrex::Gpu::streamSynchronize();

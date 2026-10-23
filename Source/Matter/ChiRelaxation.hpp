@@ -32,7 +32,7 @@ template <class matter_t> class ChiRelaxation
 {
 
     // Use the variable definitions in the matter class
-    using Vars = typename matter_t::Vars;
+    using Vars = matter_t::Vars;
 
   public:
     //! Constructor of class ChiRelaxation
@@ -64,10 +64,10 @@ template <class matter_t> class ChiRelaxation
         const amrex::Array4<amrex::Real const>
             &state,       //!< the state data (for the matter EM tensor).
         const Vars &vars, //!< the value of the variables at the point.
-        const Tensor::Rank1 &d1_chi, //!< first derivatives of chi.
-        const Tensor::Rank2 &d1_Gamma, //!< first derivatives of Gamma^i.
-        const Tensor::Sym12Rank3 &d1_h, //!< first derivatives of h_ij.
-        const Tensor::Sym12Rank2 &d2_chi, //!< second derivatives of chi.
+        const Tensor::Rank1 &d1_chi,        //!< first derivatives of chi.
+        const Tensor::Rank2 &d1_Gamma,      //!< first derivatives of Gamma^i.
+        const Tensor::Sym12Rank3 &d1_h,     //!< first derivatives of h_ij.
+        const Tensor::Sym12Rank2 &d2_chi,   //!< second derivatives of chi.
         const Tensor::Sym12Sym34Rank4 &d2_h //!< second derivatives of h_ij.
     ) const;
 };
