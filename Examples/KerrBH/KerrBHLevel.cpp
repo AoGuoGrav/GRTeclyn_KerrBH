@@ -11,6 +11,7 @@
 #include "Constraints.hpp"
 #include "ExtractionTagger.hpp"
 #include "FourthOrderDerivatives.hpp"
+#include "GammaCalculator.hpp"
 #include "KerrBHInitialData.hpp"
 #include "PositiveChiAndLapse.hpp"
 #include "SixthOrderDerivatives.hpp"
@@ -85,6 +86,24 @@ void KerrBHLevel::initData()
                            }
                            kerr_initial_data(ix, iy, iz, state_arrays[box_no]);
                        });
+
+    // Calculate Gamma^i from the derivatives of h_ij in MovingPunctureGauge
+    if (m_evolution_spatial_derivative_order == 4)
+    {
+        const GammaCalculator<FourthOrderDerivatives> gamma_calculator(dx);
+        amrex::ParallelFor(
+            state_new,
+            [=] AMREX_GPU_DEVICE(int box_no, int ix, int iy, int iz)
+            { gamma_calculator(ix, iy, iz, state_arrays[box_no]); });
+    }
+    else if (m_evolution_spatial_derivative_order == 6)
+    {
+        const GammaCalculator<SixthOrderDerivatives> gamma_calculator(dx);
+        amrex::ParallelFor(
+            state_new,
+            [=] AMREX_GPU_DEVICE(int box_no, int ix, int iy, int iz)
+            { gamma_calculator(ix, iy, iz, state_arrays[box_no]); });
+    }
 
     amrex::Gpu::streamSynchronize();
 }
