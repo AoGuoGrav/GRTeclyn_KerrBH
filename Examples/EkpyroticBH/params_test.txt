@@ -1,0 +1,129 @@
+# GRTeclyn: black hole in an ekpyrotic contraction, XCTS initial data
+# Small single-level test of the XCTS relaxation (see XCTSRelaxation.hpp and
+# EkpyroticBHData.hpp). Commented parameters show default or suggested
+# values.
+#
+# Checks:
+#  - bh.mass = 0 xcts.lapse = unit must reproduce the Ekpyrotic example
+#    (beta stays 0, lapse stays 1).
+#  - bh.mass > 0: the XCTS residuals Ru, Rv, Rbeta printed every step decay.
+
+#################################################
+# Filesystem parameters
+# grteclyn.output_path = . # base path for all output
+
+amr.verbose = 0
+
+amr.check_int = -1
+amr.plot_int = -1
+
+amr.plot_vars = chi K lapse shift1 shift2 shift3 phi Pi A11 xcts_u xcts_v
+amr.derive_plot_vars = constraints
+
+#################################################
+# Scalar-field and potential parameters
+
+# kappa^2 = 8 pi G = 1, as in Xue et al.
+scalar_field.G_Newton = 0.039788735772973836
+# V(phi) = V0 exp(-c phi)
+scalar_field.V0 = -0.02
+scalar_field.c = 10.0
+
+#################################################
+# Cosmological free data (as in the Ekpyrotic example)
+# Q(x) = Pi0 + f0 cos(m x), phi(x) = phi0 + f1 cos(m x), m = 2 pi n / L_x
+
+initial_data.phi0 = 0.0
+initial_data.use_scaling_Pi0 = true
+initial_data.f0 = 0.0
+initial_data.f1 = 0.0
+initial_data.lambda = -0.5
+initial_data.mode_number = 1
+
+#################################################
+# Black hole parameters
+# psi = 1 + M W(r) / (2 r) + u; W = 1 for r < window_inner, 0 for
+# r > window_outer. The matter is homogeneous (local Friedmann with the BH
+# mass included in K0) for r < homogeneous_inner.
+
+bh.mass = 0.5
+# Must be a vertex of the coarsest grid
+bh.center = 4.0 4.0 4.0
+bh.window_inner = 1.0
+bh.window_outer = 3.5
+bh.homogeneous_inner = 1.0
+bh.homogeneous_outer = 2.0
+
+#################################################
+# XCTS relaxation parameters
+# For t < relaxation_time only u, v, beta (and their pseudo-time
+# derivatives) evolve; the defaults of A_* and eta_* are printed at start-up.
+
+xcts.relaxation_time = 5.0
+# "xcts" solves the lapse equation, "unit" sets alpha = 1 (CTS)
+xcts.lapse = xcts
+# xcts.A_u = 20.0
+# xcts.A_v = 20.0
+# xcts.A_beta = 15.0
+# xcts.eta_u =
+# xcts.eta_v =
+# xcts.eta_beta =
+# Lapse and shift for the evolution: precollapsed (psi^-2) or xcts; xcts or
+# zero
+xcts.evolution_lapse = precollapsed
+xcts.evolution_shift = xcts
+# Residuals and constraints are not counted for r < this radius (default M)
+# xcts.diagnostic_excision_radius = 0.5
+
+#################################################
+# Grid parameters
+
+amr.n_cell = 64 64 64
+geometry.prob_extent = 8.0 8.0 8.0
+# Used by FixedGridsTagger: put it at the black hole
+geometry.center = 4.0 4.0 4.0
+
+amr.max_level = 0
+
+amr.regrid_int = -1
+amr.max_grid_size = 32
+amr.blocking_factor = 16
+
+#################################################
+# Boundary condition parameters
+
+geometry.is_periodic = 1 1 1
+
+#################################################
+# Evolution parameters
+
+evolution.dt_multiplier = 0.1
+evolution.stop_time = 5.0
+# evolution.max_steps = 1000000
+
+# evolution.nan_check = true
+
+# 1+log slicing and integrated Gamma-driver shift
+gauge.lapse_advec_coeff = 1.0
+gauge.lapse_coeff = 2.0
+gauge.lapse_power = 1.0
+gauge.shift_advec_coeff = 0.0
+gauge.shift_Gamma_coeff = 0.75
+gauge.eta = 1.0
+
+ccz4.formulation = 0 # 1 for BSSN, 0 for CCZ4
+ccz4.kappa1 = 0.1
+ccz4.kappa2 = 0.0
+ccz4.kappa3 = 1.0
+evolution.sigma = 0.3
+
+#################################################
+# Diagnostics
+
+diagnostics.print_interval = 20
+diagnostics.extraction_interval = 1000000
+
+chi_line_extraction.enabled = false
+lapse_line_extraction.enabled = false
+xcts_line_extraction.enabled = false
+constraints_line_extraction.enabled = false

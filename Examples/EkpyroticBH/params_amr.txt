@@ -1,0 +1,178 @@
+# GRTeclyn: black hole in an ekpyrotic contraction, XCTS initial data
+# Physical parameters and fixed mesh refinement around the black hole.
+# Purpose: check that the XCTS relaxation works on an AMR hierarchy (the
+# residuals Ru, Rv, Rbeta of every level, printed as "lev N", should decay
+# exponentially; the BSSN Ham/Mom outside diagnostic_excision_radius should
+# drop to truncation level). Commented parameters show default or suggested
+# values.
+#
+# Scales (kappa^2 = 1, background as in the Ekpyrotic example):
+#   <rho> = 1.28e-3, 3 kappa^2 <rho> = 3.83e-3, 24 pi M / V_box = 5.9e-5
+#   (the black hole is ~1.5% of the mean density, so the box is close to an
+#   isolated black hole in FRW), K0 = 0.0624, Hubble radius 3 / K0 = 48,
+#   horizon (isotropic) r = M / 2 = 0.025.
+#   The background reaches the big crunch a proper time 3 p / K0 = 0.96
+#   (p = 2 kappa^2 / c^2 = 0.02), i.e. ~19 M, after the relaxation ends.
+#   The nearest periodic image is 40 away, so it is causally disconnected
+#   during the evolution; the periodicity only enters the (elliptic)
+#   initial data, through the 1.5% shift of K0.
+#   Finest dx = 0.625 / 2^8 = 2.44e-3, M / dx = 20.5.
+
+#################################################
+# Filesystem parameters
+# grteclyn.output_path = . # base path for all output
+
+amr.verbose = 1
+
+# Number of level-0 steps between checkpoint/plot files; -1 disables output.
+# The checkpoint at the end of the relaxation (step 240) can be used to
+# restart into the evolution.
+amr.check_int = 240
+amr.plot_int = 60
+
+amr.plot_vars = chi K lapse shift1 shift2 shift3 phi Pi A11 A22 xcts_u xcts_v
+amr.derive_plot_vars = constraints
+
+#################################################
+# Scalar-field and potential parameters
+
+# kappa^2 = 8 pi G = 1, as in Xue et al.
+scalar_field.G_Newton = 0.039788735772973836
+# V(phi) = V0 exp(-c phi)
+scalar_field.V0 = -0.02
+scalar_field.c = 10.0
+
+#################################################
+# Cosmological free data (as in the Ekpyrotic example)
+# Q(x) = Pi0 + f0 cos(m x), phi(x) = phi0 + f1 cos(m x), m = 2 pi n / L_x
+# (n = 2 in the 40^3 box: wavelength 20, ~0.4 Hubble radii)
+# Pi0 = -0.2063 from the scaling solution. f0 / f1 = -(c / 2) Pi0 = 1.03 is
+# a perturbation along the attractor (a time shift of the scaling solution).
+
+initial_data.phi0 = 0.0
+initial_data.use_scaling_Pi0 = true
+initial_data.f0 = 0.0103
+initial_data.f1 = 0.01
+# Axisymmetric shear about x
+initial_data.lambda = -0.5
+initial_data.mode_number = 2
+
+#################################################
+# Black hole parameters
+# psi = 1 + M W(r) / (2 r) + u; W = 1 for r < window_inner, 0 for
+# r > window_outer (must be < half the box). The matter is homogeneous
+# (local Friedmann, Xue perturbation switched off) for r < homogeneous_inner.
+
+bh.mass = 0.05
+# A vertex of the coarsest grid, and an extremum of cos(m x) (x = L_x / 2,
+# cos(m x) = 1 for n = 2) so that the momentum source integrates to zero
+# over the periodic box
+bh.center = 20.0 20.0 20.0
+bh.window_inner = 3.0
+bh.window_outer = 16.0
+bh.homogeneous_inner = 1.0
+bh.homogeneous_outer = 4.0
+
+#################################################
+# XCTS relaxation parameters
+# Relaxation in pseudo-time: ~1e-6 residuals after tau ~ 10 in the
+# single-level tests (8^3 box). The slowest shift mode (k = 2 pi / 40)
+# decays at about half that rate here, hence the longer relaxation. The
+# defaults of A_* and eta_* are printed at start-up.
+
+xcts.relaxation_time = 15.0
+# "xcts" solves the lapse equation, "unit" sets alpha = 1 (CTS)
+xcts.lapse = xcts
+# xcts.A_u = 20.0
+# xcts.A_v = 20.0
+# xcts.A_beta = 15.0
+# Lapse and shift handed to the evolution
+xcts.evolution_lapse = precollapsed
+xcts.evolution_shift = xcts
+# Residuals and constraints are not counted for r < this radius (5 M)
+xcts.diagnostic_excision_radius = 0.25
+
+#################################################
+# Grid parameters
+
+amr.n_cell = 64 64 64
+geometry.prob_extent = 40.0 40.0 40.0
+# Used by FixedGridsTagger: nested boxes centred on the black hole, each
+# level covering half the width of the one below (64^3 cells per level)
+geometry.center = 20.0 20.0 20.0
+
+amr.max_level = 8 # there are max_level + 1 levels
+
+# The grids are fixed (static FixedGridsTagger, black hole at rest)
+amr.regrid_int = -1
+
+amr.max_grid_size = 16
+amr.blocking_factor = 16
+
+#################################################
+# Boundary condition parameters
+
+geometry.is_periodic = 1 1 1
+
+#################################################
+# Evolution parameters
+
+# dt is dx * dt_multiplier on each grid level
+evolution.dt_multiplier = 0.1
+# Relaxation only. For the evolution after it, increase stop_time, keeping
+# stop_time < relaxation_time + 0.96 (big crunch).
+evolution.stop_time = 15.0
+# evolution.max_steps = 1000000
+
+evolution.nan_check = true
+
+# 1+log slicing and integrated Gamma-driver shift
+gauge.lapse_advec_coeff = 1.0
+gauge.lapse_coeff = 2.0
+gauge.lapse_power = 1.0
+gauge.shift_advec_coeff = 0.0
+gauge.shift_Gamma_coeff = 0.75
+# ~ 0.5 / M
+gauge.eta = 10.0
+
+ccz4.formulation = 0 # 1 for BSSN, 0 for CCZ4
+ccz4.kappa1 = 0.1
+ccz4.kappa2 = 0.0
+ccz4.kappa3 = 1.0
+evolution.sigma = 0.3
+
+# ccz4.min_chi = 1.e-4
+# ccz4.min_lapse = 1.e-4
+
+#################################################
+# Diagnostics
+
+# Every print_interval level-0 steps: one line per level with the XCTS
+# residuals, the BSSN constraints and averages
+diagnostics.print_interval = 5
+diagnostics.extraction_interval = 60
+
+# Profiles along x through (just next to) the black hole
+chi_line_extraction.enabled = true
+chi_line_extraction.num_points = 4001
+chi_line_extraction.start = 0.005 20.001 20.001
+chi_line_extraction.end = 39.995 20.001 20.001
+chi_line_extraction.file_prefix = chi_
+
+lapse_line_extraction.enabled = true
+lapse_line_extraction.num_points = 4001
+lapse_line_extraction.start = 0.005 20.001 20.001
+lapse_line_extraction.end = 39.995 20.001 20.001
+lapse_line_extraction.file_prefix = lapse_
+
+xcts_line_extraction.enabled = true
+xcts_line_extraction.num_points = 4001
+xcts_line_extraction.start = 0.005 20.001 20.001
+xcts_line_extraction.end = 39.995 20.001 20.001
+xcts_line_extraction.file_prefix = xcts_
+
+constraints_line_extraction.enabled = true
+constraints_line_extraction.num_points = 4001
+constraints_line_extraction.start = 0.005 20.001 20.001
+constraints_line_extraction.end = 39.995 20.001 20.001
+constraints_line_extraction.file_prefix = constraints_
