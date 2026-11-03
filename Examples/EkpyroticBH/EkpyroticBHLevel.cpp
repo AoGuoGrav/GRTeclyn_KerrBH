@@ -98,17 +98,19 @@ void EkpyroticBHLevel::hand_over_to_evolution(const xcts_params_t &a_xcts)
                        << ", shift = " << (zero_shift ? "0" : "XCTS shift")
                        << "\n";
     }
-    if (!precollapse && !zero_shift)
-    {
-        return;
-    }
 
+    // Theta and B^i held theta_u and theta_beta^i (see StateVariables.hpp)
     amrex::MultiFab &state_new = get_new_data(state_index);
     const auto &state_arrays   = state_new.arrays();
     amrex::ParallelFor(state_new,
                        [=] AMREX_GPU_DEVICE(int box_no, int ix, int iy, int iz)
                        {
                            const auto &state = state_arrays[box_no];
+                           state(ix, iy, iz, c_Theta) = 0.0;
+                           FOR (i)
+                           {
+                               state(ix, iy, iz, c_B1 + i) = 0.0;
+                           }
                            if (precollapse)
                            {
                                state(ix, iy, iz, c_lapse) =
@@ -118,8 +120,7 @@ void EkpyroticBHLevel::hand_over_to_evolution(const xcts_params_t &a_xcts)
                            {
                                FOR (i)
                                {
-                                   state(ix, iy, iz, c_shift1 + i)      = 0.0;
-                                   state(ix, iy, iz, c_theta_beta1 + i) = 0.0;
+                                   state(ix, iy, iz, c_shift1 + i) = 0.0;
                                }
                            }
                        });
@@ -148,13 +149,6 @@ void EkpyroticBHLevel::specific_advance()
     if (is_relaxation_step())
     {
         update_bssn_variables();
-
-        xcts_params_t xcts;
-        xcts.fill_params();
-        if (get_state_data(state_index).curTime() >= xcts.relaxation_time)
-        {
-            hand_over_to_evolution(xcts);
-        }
     }
 }
 
@@ -174,6 +168,22 @@ void EkpyroticBHLevel::specific_post_timestep()
     if (Level() != 0)
     {
         return;
+    }
+
+    // Hand over on all levels at once when the last relaxation step of level
+    // 0 has ended: all finer levels have then reached the same time, so no
+    // relaxation substep fills its ghost cells from handed-over coarse data
+    xcts_params_t xcts;
+    xcts.fill_params();
+    if (is_relaxation_step() &&
+        get_state_data(state_index).curTime() >= xcts.relaxation_time)
+    {
+        for (int lev = 0; lev <= get_gr_amr_ptr()->finestLevel(); ++lev)
+        {
+            auto &level = dynamic_cast<EkpyroticBHLevel &>(
+                get_gr_amr_ptr()->getLevel(lev));
+            level.hand_over_to_evolution(xcts);
+        }
     }
 
     diagnostics_params_t diagnostics;
@@ -473,7 +483,7 @@ void EkpyroticBHLevel::evolution_rhs(amrex::MultiFab &a_soln,
             // The XCTS variables are only used by the relaxation: freeze
             // them. Their RHS is not written above (and the dissipation adds
             // to the RHS of all NUM_VARS components), so overwrite it last
-            for (int icomp = c_xcts_u; icomp <= c_theta_beta3; ++icomp)
+            for (int icomp = c_xcts_u; icomp < NUM_VARS; ++icomp)
             {
                 rhs_arrays[box_no](ix, iy, iz, icomp) = 0.0;
             }

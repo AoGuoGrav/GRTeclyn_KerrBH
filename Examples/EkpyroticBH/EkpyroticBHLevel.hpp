@@ -22,9 +22,11 @@
     For time < xcts.relaxation_time the XCTS unknowns (u, v, beta^i, see
     XCTSRelaxation) are relaxed and all other RHS are zero; the BSSN
     variables are recomputed from the XCTS unknowns after every step. At the
-    end of the relaxation the lapse and shift are optionally replaced (see
-    xcts_params_t). After that the CCZ4/BSSN equations with the scalar field
-    are evolved, with the XCTS auxiliary variables frozen.
+    end of the relaxation (on all levels at once, in the post timestep of
+    level 0) Theta and B^i, which held pseudo-time derivatives, are set to
+    zero and the lapse and shift are optionally replaced (see xcts_params_t).
+    After that the CCZ4/BSSN equations with the scalar field are evolved,
+    with the XCTS auxiliary variables frozen.
 */
 class EkpyroticBHLevel : public GRAmrLevel
 {
@@ -74,7 +76,8 @@ class EkpyroticBHLevel : public GRAmrLevel
     //! Recompute the BSSN variables from the XCTS unknowns
     void update_bssn_variables();
 
-    //! Replace the lapse/shift at the end of the relaxation (if requested)
+    //! Zero Theta and B^i and replace the lapse/shift (if requested) on this
+    //! level at the end of the relaxation
     void hand_over_to_evolution(const xcts_params_t &a_xcts);
 
     //! Print the diagnostics of every level (call on level 0)

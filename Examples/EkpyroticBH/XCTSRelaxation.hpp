@@ -315,12 +315,12 @@ class XCTSRelaxation
             a_out(ix, iy, iz, sym_var_idx(c_A11, i, j)) =
                 a_point.Ahat(i, j) / psi6;
         }
-        a_out(ix, iy, iz, c_K)     = m_data.get_derived().K0;
-        a_out(ix, iy, iz, c_Theta) = 0.0;
+        // Theta and B^i hold theta_u and theta_beta^i during the relaxation
+        // (see StateVariables.hpp) and are set to zero at its end
+        a_out(ix, iy, iz, c_K) = m_data.get_derived().K0;
         FOR (i)
         {
             a_out(ix, iy, iz, c_Gamma1 + i) = 0.0;
-            a_out(ix, iy, iz, c_B1 + i)     = 0.0;
         }
         a_out(ix, iy, iz, c_lapse) = a_point.lapse;
         a_out(ix, iy, iz, c_phi)   = a_point.matter.phi;
