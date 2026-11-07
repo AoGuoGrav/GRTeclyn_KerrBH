@@ -60,7 +60,8 @@ class EkpyroticBHLevel : public GRAmrLevel
     //! The relaxation operator for this level
     [[nodiscard]] XCTSRelaxation make_relaxation() const;
 
-    //! Whether the step that starts at prevTime is a relaxation step
+    //! Whether the current level-0 step (and so every finer substep within
+    //! it) is a relaxation step
     [[nodiscard]] bool is_relaxation_step();
 
     //! RHS during the XCTS relaxation

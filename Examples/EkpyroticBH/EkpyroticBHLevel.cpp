@@ -47,12 +47,18 @@ XCTSRelaxation EkpyroticBHLevel::make_relaxation() const
 
 bool EkpyroticBHLevel::is_relaxation_step()
 {
-    // Decided per step (not per RK stage) so that a step is never a mixture
-    // of relaxation and evolution stages. During advance() the previous time
-    // of the state is the start of the step.
+    // Decided per coarse step (not per RK stage or per level) so that a step
+    // is never a mixture of relaxation and evolution stages, and all finer
+    // substeps of a relaxation step of level 0 are relaxation substeps (the
+    // hand-over in specific_post_timestep only happens after them). While any
+    // level advances, and in the post timestep of level 0, the previous time
+    // of level 0 is the start of the current level-0 step.
     xcts_params_t xcts;
     xcts.fill_params();
-    return get_state_data(state_index).prevTime() < xcts.relaxation_time;
+    return get_gr_amr_ptr()
+               ->getLevel(0)
+               .get_state_data(state_index)
+               .prevTime() < xcts.relaxation_time;
 }
 
 amrex::MultiFab EkpyroticBHLevel::filled_state()
