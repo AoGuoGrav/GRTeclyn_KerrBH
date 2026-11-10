@@ -18,6 +18,10 @@
 #include "SixthOrderDerivatives.hpp"
 #include "StateTypes.hpp"
 
+#include <AMReX_MultiFabUtil.H>
+#include <AMReX_iMultiFab.H>
+
+#include <algorithm>
 #include <cmath>
 #include <iomanip>
 #include <type_traits>
@@ -310,17 +314,69 @@ void EkpyroticBHLevel::print_level_diagnostics()
     const auto num_points = static_cast<amrex::Real>(state.boxArray().numPts());
     const amrex::Real sqrt_points = std::sqrt(num_points);
 
-    const amrex::Real ham_rms   = constraints->norm2(0) / sqrt_points;
-    const amrex::Real ham_max   = constraints->norm0(0);
-    amrex::Real mom_sum_squares = 0.0;
-    amrex::Real mom_max         = 0.0;
-    for (int icomp = 1; icomp <= AMREX_SPACEDIM; ++icomp)
+    // rms (over a_num_points cells) and max of Ham and |Mom|
+    struct constraint_norms_t
     {
-        const amrex::Real norm2  = constraints->norm2(icomp);
-        mom_sum_squares         += norm2 * norm2;
-        mom_max                  = std::max(mom_max, constraints->norm0(icomp));
+        amrex::Real ham_rms;
+        amrex::Real ham_max;
+        amrex::Real mom_rms;
+        amrex::Real mom_max;
+    };
+    const auto constraint_norms =
+        [](const amrex::MultiFab &a_constraints, amrex::Real a_num_points)
+    {
+        constraint_norms_t norms{};
+        norms.ham_rms =
+            a_constraints.norm2(0) / std::sqrt(std::max(a_num_points, 1.0));
+        norms.ham_max               = a_constraints.norm0(0);
+        amrex::Real mom_sum_squares = 0.0;
+        for (int icomp = 1; icomp <= AMREX_SPACEDIM; ++icomp)
+        {
+            const amrex::Real norm2  = a_constraints.norm2(icomp);
+            mom_sum_squares         += norm2 * norm2;
+            norms.mom_max = std::max(norms.mom_max, a_constraints.norm0(icomp));
+        }
+        norms.mom_rms =
+            std::sqrt(mom_sum_squares / std::max(a_num_points, 1.0));
+        return norms;
+    };
+
+    // Over all cells of this level. Where a finer level exists these are
+    // dominated by its region: there the stencils of this level act on the
+    // averaged-down solution of the finer levels (e.g. an unresolved
+    // puncture).
+    const constraint_norms_t all = constraint_norms(*constraints, num_points);
+
+    // Over the cells not covered by the next finer level, i.e. where this
+    // level is the finest one (the excised cells still count as zeros)
+    amrex::MultiFab uncovered(constraints->boxArray(),
+                              constraints->DistributionMap(), num_constraints,
+                              0);
+    amrex::MultiFab::Copy(uncovered, *constraints, 0, 0, num_constraints, 0);
+    amrex::Real num_uncovered = num_points;
+    if (Level() < get_gr_amr_ptr()->finestLevel())
+    {
+        const amrex::iMultiFab covered = amrex::makeFineMask(
+            uncovered, get_gr_amr_ptr()->boxArray(Level() + 1),
+            get_gr_amr_ptr()->refRatio(Level()));
+        const auto &covered_arrays   = covered.const_arrays();
+        const auto &uncovered_arrays = uncovered.arrays();
+        amrex::ParallelFor(
+            uncovered,
+            [=] AMREX_GPU_DEVICE(int box_no, int ix, int iy, int iz)
+            {
+                if (covered_arrays[box_no](ix, iy, iz) != 0)
+                {
+                    for (int icomp = 0; icomp < num_constraints; ++icomp)
+                    {
+                        uncovered_arrays[box_no](ix, iy, iz, icomp) = 0.0;
+                    }
+                }
+            });
+        amrex::Gpu::streamSynchronize();
+        num_uncovered -= static_cast<amrex::Real>(covered.sum(0));
     }
-    const amrex::Real mom_rms = std::sqrt(mom_sum_squares / num_points);
+    const constraint_norms_t leaf = constraint_norms(uncovered, num_uncovered);
 
     amrex::Real beta_max = 0.0;
     for (int icomp = 0; icomp < AMREX_SPACEDIM; ++icomp)
@@ -337,13 +393,16 @@ void EkpyroticBHLevel::print_level_diagnostics()
                    << residuals.norm2(1) / sqrt_points << " Rv_max "
                    << residuals.norm0(1) << " Rbeta_rms "
                    << residuals.norm2(2) / sqrt_points << " Rbeta_max "
-                   << residuals.norm0(2) << " Ham_rms " << ham_rms
-                   << " Ham_max " << ham_max << " Mom_rms " << mom_rms
-                   << " Mom_max " << mom_max << " chi_min " << state.min(c_chi)
-                   << " lapse_min " << state.min(c_lapse) << " lapse_max "
-                   << state.max(c_lapse) << " u_mean "
+                   << residuals.norm0(2) << " Ham_rms " << all.ham_rms
+                   << " Ham_max " << all.ham_max << " Mom_rms " << all.mom_rms
+                   << " Mom_max " << all.mom_max << " chi_min "
+                   << state.min(c_chi) << " lapse_min " << state.min(c_lapse)
+                   << " lapse_max " << state.max(c_lapse) << " u_mean "
                    << state.sum(c_xcts_u) / num_points << " beta_max "
-                   << beta_max << "\n"
+                   << beta_max << " Ham_rms_uncovered " << leaf.ham_rms
+                   << " Ham_max_uncovered " << leaf.ham_max
+                   << " Mom_rms_uncovered " << leaf.mom_rms
+                   << " Mom_max_uncovered " << leaf.mom_max << "\n"
                    << std::defaultfloat;
 }
 

@@ -49,7 +49,13 @@ At every print interval the program writes:
 - the BSSN constraints, which are computed independently by finite
   differences.
 
-Both are left out inside `xcts.diagnostic_excision_radius`.
+Both are left out inside `xcts.diagnostic_excision_radius`. With mesh
+refinement there is one line per level (`lev N`). Its `Ham_*` and `Mom_*`
+columns cover the whole level, so where a finer level exists they are
+dominated by the coarse stencils acting on the averaged-down (e.g.
+unresolved puncture) data. The `*_uncovered` columns only count the cells
+that are not covered by the next finer level, i.e. where that level is the
+finest one; use these to judge the constraints.
 
 At the end of the relaxation:
 
@@ -73,9 +79,10 @@ Then 1+log slicing and the integrated Gamma-driver take over.
     nearest periodic image is causally disconnected during the evolution,
     so this is close to an isolated black hole in FRW;
   - a `64^3` coarse grid plus 8 fixed levels (`FixedGridsTagger` centred
-    on the black hole), giving `M / dx = 20` on the finest level.
+    on the black hole, `96^3` cells each), giving `M / dx = 20` on the
+    finest level.
 
   It relaxes for `tau = 15`, then writes a checkpoint so the run can be
   restarted into the evolution. It checks that the relaxation works on
-  an AMR hierarchy; the diagnostics print one line per level
-  (`lev N`). It has not been run yet.
+  an AMR hierarchy. On MareNostrum 5 (2 nodes, 224 MPI ranks) it takes
+  about 2.2 hours; the residuals reach their floor by `tau ~ 14`.

@@ -2,9 +2,9 @@
 # Physical parameters and fixed mesh refinement around the black hole.
 # Purpose: check that the XCTS relaxation works on an AMR hierarchy (the
 # residuals Ru, Rv, Rbeta of every level, printed as "lev N", should decay
-# exponentially; the BSSN Ham/Mom outside diagnostic_excision_radius should
-# drop to truncation level). Commented parameters show default or suggested
-# values.
+# exponentially; the BSSN Ham/Mom outside diagnostic_excision_radius, on the
+# cells not covered by a finer level (*_uncovered), should drop to
+# truncation level). Commented parameters show default or suggested values.
 #
 # Scales (kappa^2 = 1, background as in the Ekpyrotic example):
 #   <rho> = 1.28e-3, 3 kappa^2 <rho> = 3.83e-3, 24 pi M / V_box = 5.9e-5
@@ -98,7 +98,8 @@ xcts.diagnostic_excision_radius = 0.25
 amr.n_cell = 64 64 64
 geometry.prob_extent = 40.0 40.0 40.0
 # Used by FixedGridsTagger: nested boxes centred on the black hole, each
-# level covering half the width of the one below (64^3 cells per level)
+# finer level 96^3 cells (216 boxes of 16^3); level 1 is 30 wide and every
+# further level half the width of the one below
 geometry.center = 20.0 20.0 20.0
 
 amr.max_level = 8 # there are max_level + 1 levels
